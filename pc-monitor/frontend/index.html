@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Premium PC Monitoring Dashboard - Real-time system metrics">
+    <meta name="theme-color" content="#06060f">
+    <title>PC Monitor — Real-time Dashboard</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+
+    <!-- Our CSS -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="dashboard">
+
+        <!-- ============ HEADER ============ -->
+        <header class="header">
+            <div class="header-left">
+                <h1 class="header-title">PC Monitor</h1>
+                <div class="header-status">
+                    <span id="status-dot" class="status-dot connecting"></span>
+                    <span id="status-text" class="status-text">연결 중...</span>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="uptime-badge">
+                    <span class="uptime-icon">⏱️</span>
+                    <span id="uptime" class="uptime-value">--</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- ============ GAUGES ROW ============ -->
+        <section class="gauges-grid" aria-label="System Gauges">
+            <div class="card gauge-card">
+                <h3 class="gauge-title">CPU</h3>
+                <div class="gauge-canvas-container">
+                    <canvas id="cpu-gauge-canvas" width="200" height="200"></canvas>
+                    <span id="cpu-percent" class="gauge-center-text">0%</span>
+                </div>
+                <p id="cpu-detail" class="gauge-detail">-- C / -- T · -- MHz</p>
+            </div>
+
+            <div class="card gauge-card">
+                <h3 class="gauge-title">Memory</h3>
+                <div class="gauge-canvas-container">
+                    <canvas id="memory-gauge-canvas" width="200" height="200"></canvas>
+                    <span id="memory-percent" class="gauge-center-text">0%</span>
+                </div>
+                <p id="memory-detail" class="gauge-detail">-- / --</p>
+            </div>
+
+            <!-- GPU gauge cards are dynamically created by app.js for each GPU -->
+        </section>
+
+        <!-- ============ CHARTS ROW 1: CPU Cores + Network ============ -->
+        <section class="charts-grid" aria-label="CPU Cores and Network">
+            <div class="card chart-card">
+                <h3 class="card-title">CPU Core Usage</h3>
+                <div class="chart-container">
+                    <canvas id="cpu-cores-chart"></canvas>
+                </div>
+            </div>
+
+            <div class="card chart-card">
+                <h3 class="card-title">Network Speed</h3>
+                <div class="network-stats">
+                    <span class="net-stat download">↓ <span id="net-download">0 B/s</span></span>
+                    <span class="net-stat upload">↑ <span id="net-upload">0 B/s</span></span>
+                    <span class="net-stat connections">🔗 <span id="net-connections">0</span></span>
+                </div>
+                <div class="chart-container">
+                    <canvas id="network-chart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============ CHARTS ROW 2: Disk Partitions + Disk I/O ============ -->
+        <section class="charts-grid" aria-label="Disk Information">
+            <div class="card chart-card">
+                <h3 class="card-title">Disk Partitions</h3>
+                <div id="disk-partitions" class="disk-partitions-container">
+                    <!-- Disk partition bars injected here -->
+                </div>
+            </div>
+
+            <div class="card chart-card">
+                <h3 class="card-title">Disk I/O</h3>
+                <div class="chart-container">
+                    <canvas id="disk-io-chart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============ PROCESS TABLE ============ -->
+        <section class="card process-section" aria-label="Processes">
+            <div class="process-header">
+                <h3 class="card-title">Processes</h3>
+                <div class="sort-controls">
+                    <span class="sort-label">Sort by:</span>
+                    <button id="sort-cpu-btn" class="sort-btn active">CPU</button>
+                    <button id="sort-mem-btn" class="sort-btn">Memory</button>
+                </div>
+            </div>
+            <div class="process-table-wrapper">
+                <table class="process-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>PID</th>
+                            <th>Name</th>
+                            <th>CPU</th>
+                            <th>Memory</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="process-table-body">
+                        <!-- Process rows injected here -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ============ SYSTEM INFO ============ -->
+        <section class="card" aria-label="System Information">
+            <h3 class="card-title">System Information</h3>
+            <div id="system-info" class="system-info-grid">
+                <!-- System info cards injected here -->
+            </div>
+        </section>
+
+    </div><!-- /.dashboard -->
+
+    <!-- ============ TOAST CONTAINER ============ -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Our JS -->
+    <script src="js/gauges.js"></script>
+    <script src="js/charts.js"></script>
+    <script src="js/alerts.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

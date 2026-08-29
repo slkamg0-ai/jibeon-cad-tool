@@ -16,7 +16,7 @@ def test_search_parcel_mock_mode_returns_result():
 def test_download_cadastral_mock_mode_includes_target_parcel():
     client = VWorldClient(use_mock=True)
     search_result = client.search_parcel("서울특별시 종로구 1번지")
-    parcels, target_index = client.download_cadastral(search_result, CoordSystem.GRS80_MID)
+    parcels, target_index = client.download_cadastral(search_result)
     assert len(parcels) >= 1
     target = parcels[target_index]
     assert target.contains(target.centroid)
@@ -26,4 +26,10 @@ def test_download_cadastral_without_mock_raises_not_implemented():
     client = VWorldClient(api_key="dummy-key", use_mock=False)
     search_result = mock_data.mock_search_parcel("테스트")
     with pytest.raises(NotImplementedError):
-        client.download_cadastral(search_result, CoordSystem.GRS80_MID)
+        client.download_cadastral(search_result)
+
+
+def test_vworld_client_defaults_to_mock_when_no_api_key(monkeypatch):
+    monkeypatch.delenv("VWORLD_API_KEY", raising=False)
+    client = VWorldClient()
+    assert client.use_mock is True

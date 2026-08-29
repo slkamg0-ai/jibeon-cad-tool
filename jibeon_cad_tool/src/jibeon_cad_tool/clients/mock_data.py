@@ -14,7 +14,7 @@ def mock_search_parcel(address: str) -> ParcelSearchResult:
 
 
 def mock_cadastral_parcels(
-    result: ParcelSearchResult, coord_system: CoordSystem
+    result: ParcelSearchResult,
 ) -> tuple[list[Polygon], int]:
     cx, cy = result.x, result.y
     target = Polygon([

@@ -1309,3 +1309,5 @@ git commit -m "feat: add application entrypoint wiring QApplication and MainWind
 - 국토정보플랫폼 API 키 발급 후 `NgiiClient.download_topo`/`download_ortho`의 `NotImplementedError`를 실제 엔드포인트 연동으로 교체 (정사영상은 GeoTIFF 등 실제 래스터 포맷으로 전환)
 - API로 지원되지 않는 다운로드 기능에 대한 Playwright 기반 웹 자동화 폴백 구현
 - 다중 지번 일괄 처리 (설계 문서에서 범위 제외로 명시됨)
+- UI에서 파이프라인을 백그라운드 스레드(QThread)로 실행하고 단계별 진행률을 표시 (현재는 GUI 스레드에서 동기 호출 — 목업 모드에서는 즉시 끝나 문제없지만 실 API 연동 시 창이 멈출 수 있음)
+- 검색 결과 미리보기, 취소/재시도 UI 추가 (설계 문서에 명시되었으나 현재 미구현)

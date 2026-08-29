@@ -31,10 +31,10 @@ class VWorldClient:
         return _parse_search_response(response.json(), address)
 
     def download_cadastral(
-        self, result: ParcelSearchResult, coord_system: CoordSystem
+        self, result: ParcelSearchResult
     ) -> tuple[list, int]:
         if self.use_mock:
-            return mock_data.mock_cadastral_parcels(result, coord_system)
+            return mock_data.mock_cadastral_parcels(result)
         raise NotImplementedError(
             "실 API 지적도 다운로드 엔드포인트는 API 키 발급 후 연동 예정"
         )

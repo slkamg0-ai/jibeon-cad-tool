@@ -38,3 +38,9 @@ def test_download_topo_without_mock_raises_not_implemented(search_result):
     client = NgiiClient(api_key="dummy-key", use_mock=False)
     with pytest.raises(NotImplementedError):
         client.download_topo(search_result, CoordSystem.GRS80_MID, "unused.txt")
+
+
+def test_ngii_client_defaults_to_mock_when_no_api_key(monkeypatch):
+    monkeypatch.delenv("NGII_API_KEY", raising=False)
+    client = NgiiClient()
+    assert client.use_mock is True

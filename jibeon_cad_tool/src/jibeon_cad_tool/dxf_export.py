@@ -36,6 +36,7 @@ def build_cadastral_dxf(
     doc.saveas(output_path)
 
 
+# Cadastral parcels are assumed to have no interior rings (holes); only exterior boundaries are drawn.
 def _polygon_rings(geometry):
     if geometry.geom_type == "Polygon":
         yield list(geometry.exterior.coords)

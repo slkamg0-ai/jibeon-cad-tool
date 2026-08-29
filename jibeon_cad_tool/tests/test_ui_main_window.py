@@ -1,0 +1,50 @@
+import os
+
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+
+import pytest
+from PySide6.QtWidgets import QApplication
+
+from jibeon_cad_tool.models import BorderShape, CoordSystem
+from jibeon_cad_tool.ui.main_window import MainWindow
+
+
+@pytest.fixture(scope="module")
+def qapp():
+    app = QApplication.instance() or QApplication([])
+    yield app
+
+
+def test_main_window_has_required_widgets(qapp):
+    window = MainWindow()
+    assert window.address_input is not None
+    assert window.search_button is not None
+    assert window.coord_system_combo.count() == len(CoordSystem)
+    assert window.border_shape_combo.count() == len(BorderShape)
+    assert window.run_button is not None
+    assert window.log_view is not None
+
+
+def test_collect_export_options_reflects_form_values(qapp):
+    window = MainWindow()
+    window.buffer_input.setText("75")
+    window.include_topo_checkbox.setChecked(True)
+    window.coord_system_combo.setCurrentIndex(
+        list(CoordSystem).index(CoordSystem.UTMK)
+    )
+    window.border_shape_combo.setCurrentIndex(
+        list(BorderShape).index(BorderShape.CIRCLE)
+    )
+
+    options = window.collect_export_options()
+
+    assert options.buffer_meters == 75.0
+    assert options.include_topo is True
+    assert options.coord_system == CoordSystem.UTMK
+    assert options.border_shape == BorderShape.CIRCLE
+
+
+def test_append_log_adds_line_to_log_view(qapp):
+    window = MainWindow()
+    window.append_log("검색: 테스트 주소")
+    assert "검색: 테스트 주소" in window.log_view.toPlainText()

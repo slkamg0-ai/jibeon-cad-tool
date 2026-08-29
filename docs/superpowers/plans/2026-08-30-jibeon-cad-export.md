@@ -1307,6 +1307,7 @@ git commit -m "feat: add application entrypoint wiring QApplication and MainWind
 
 - 브이월드 API 키 발급 후 `VWorldClient.download_cadastral`의 `NotImplementedError`를 실제 엔드포인트 연동으로 교체
 - 국토정보플랫폼 API 키 발급 후 `NgiiClient.download_topo`/`download_ortho`의 `NotImplementedError`를 실제 엔드포인트 연동으로 교체 (정사영상은 GeoTIFF 등 실제 래스터 포맷으로 전환)
+- **국토정보플랫폼(map.ngii.go.kr) 실사이트 확인 결과, 수치지형도/정사영상 다운로드는 브이월드식 API 키 모델이 아니라 로그인 세션 기반 온라인 신청 방식(민원서비스 > 지도신청, 도엽 검색 후 다운로드)임이 확인됨.** 오픈API(배경지도 WMTS·검색/POI/지오코딩)에는 별도의 인증키 발급 절차가 있지만, 지형도/정사영상 자체는 이 API로 제공되지 않을 가능성이 높음. 따라서 `NgiiClient.download_topo`/`download_ortho`의 실 연동은 API 키 기반이 아니라 **Playwright 기반 웹 자동화(로그인 → 도엽 검색 → 다운로드 신청 → 파일 수신)로 구현해야 할 가능성이 큼** — 아래 웹 자동화 폴백 항목과 통합해서 재설계 필요
 - API로 지원되지 않는 다운로드 기능에 대한 Playwright 기반 웹 자동화 폴백 구현
 - 다중 지번 일괄 처리 (설계 문서에서 범위 제외로 명시됨)
 - UI에서 파이프라인을 백그라운드 스레드(QThread)로 실행하고 단계별 진행률을 표시 (현재는 GUI 스레드에서 동기 호출 — 목업 모드에서는 즉시 끝나 문제없지만 실 API 연동 시 창이 멈출 수 있음)

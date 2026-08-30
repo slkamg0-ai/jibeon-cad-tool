@@ -24,6 +24,7 @@ class VWorldClient:
             "type": "address",
             "category": "parcel",
             "format": "json",
+            "crs": "EPSG:5186",
             "key": self.api_key,
         }
         response = requests.get(VWORLD_SEARCH_URL, params=params, timeout=10)

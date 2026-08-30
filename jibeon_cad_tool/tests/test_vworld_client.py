@@ -2,7 +2,7 @@ import pytest
 
 from jibeon_cad_tool.models import CoordSystem
 from jibeon_cad_tool.clients import mock_data
-from jibeon_cad_tool.clients.vworld_client import VWorldClient
+from jibeon_cad_tool.clients.vworld_client import VWorldClient, VWORLD_SEARCH_URL
 
 
 def test_search_parcel_mock_mode_returns_result():
@@ -33,3 +33,42 @@ def test_vworld_client_defaults_to_mock_when_no_api_key(monkeypatch):
     monkeypatch.delenv("VWORLD_API_KEY", raising=False)
     client = VWorldClient()
     assert client.use_mock is True
+
+
+def test_search_parcel_real_mode_sends_crs_param(requests_mock):
+    requests_mock.get(
+        VWORLD_SEARCH_URL,
+        json={
+            "response": {
+                "result": {
+                    "items": [
+                        {
+                            "id": "1111010100100010000",
+                            "address": {"road": "서울특별시 종로구 1"},
+                            "point": {"x": "198000.0", "y": "453000.0"},
+                        }
+                    ]
+                }
+            }
+        },
+    )
+
+    client = VWorldClient(api_key="real-key", use_mock=False)
+    result = client.search_parcel("서울특별시 종로구 1")
+
+    assert result.pnu == "1111010100100010000"
+    assert result.coord_system == CoordSystem.GRS80_MID
+    sent_crs = requests_mock.last_request.qs.get("crs")
+    assert sent_crs == ["epsg:5186"]
+
+
+def test_search_parcel_real_mode_raises_when_no_items(requests_mock):
+    requests_mock.get(
+        VWORLD_SEARCH_URL,
+        json={"response": {"result": {"items": []}}},
+    )
+
+    client = VWorldClient(api_key="real-key", use_mock=False)
+
+    with pytest.raises(ValueError):
+        client.search_parcel("존재하지 않는 주소")

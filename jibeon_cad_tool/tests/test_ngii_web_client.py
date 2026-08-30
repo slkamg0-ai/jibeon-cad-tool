@@ -16,14 +16,12 @@ def make_selectors() -> NgiiSelectors:
         password_selector="#password",
         login_submit_selector="#login-submit",
         catalog_url="https://map.ngii.go.kr/pd/ctlsSvc/ctlsSvc.do",
-        sido_select_selector="#sido",
         scale_select_selector="#scale",
         sheet_no_input_selector="#sheet-no",
         search_button_selector="#search",
         cart_add_selector="#cart-add",
         request_submit_selector="#request-submit",
         download_link_selector="#download-link",
-        request_status_selector="#status",
     )
 
 

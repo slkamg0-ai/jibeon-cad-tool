@@ -11,14 +11,12 @@ class NgiiSelectors:
     password_selector: str
     login_submit_selector: str
     catalog_url: str
-    sido_select_selector: str
     scale_select_selector: str
     sheet_no_input_selector: str
     search_button_selector: str
     cart_add_selector: str
     request_submit_selector: str
     download_link_selector: str
-    request_status_selector: str
 
 
 def load_selectors(path: Path) -> NgiiSelectors:

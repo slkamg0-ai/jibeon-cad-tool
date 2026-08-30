@@ -87,7 +87,7 @@ class NgiiWebClient:
 
     def _request_sheet(self, page, sheet_no: str, map_scale: MapScale) -> None:
         page.goto(self.selectors.catalog_url)
-        page.fill(self.selectors.scale_select_selector, map_scale.value)
+        page.select_option(self.selectors.scale_select_selector, map_scale.value)
         page.fill(self.selectors.sheet_no_input_selector, sheet_no)
         page.click(self.selectors.search_button_selector)
         page.click(self.selectors.cart_add_selector)

@@ -5,12 +5,10 @@
   "password_selector": "PLACEHOLDER_비밀번호_입력창_셀렉터",
   "login_submit_selector": "PLACEHOLDER_로그인_제출_버튼_셀렉터",
   "catalog_url": "https://map.ngii.go.kr/pd/ctlsSvc/ctlsSvc.do",
-  "sido_select_selector": "PLACEHOLDER_시도_선택_셀렉터",
   "scale_select_selector": "PLACEHOLDER_축척_선택_셀렉터",
   "sheet_no_input_selector": "PLACEHOLDER_도엽번호_입력_셀렉터",
   "search_button_selector": "PLACEHOLDER_검색_버튼_셀렉터",
   "cart_add_selector": "PLACEHOLDER_장바구니_담기_버튼_셀렉터",
   "request_submit_selector": "PLACEHOLDER_신청_제출_버튼_셀렉터",
-  "download_link_selector": "PLACEHOLDER_다운로드_링크_셀렉터",
-  "request_status_selector": "PLACEHOLDER_신청_상태_표시_셀렉터"
+  "download_link_selector": "PLACEHOLDER_다운로드_링크_셀렉터"
 }

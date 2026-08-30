@@ -198,6 +198,35 @@ def test_download_ortho_real_mode_returns_none_on_timeout(monkeypatch, tmp_path)
     )
 
     assert result is None
+    assert not Path(output_path).exists()
+
+
+def test_download_topo_real_mode_raises_on_timeout(monkeypatch, tmp_path):
+    watch_dir = tmp_path / "watch"
+    watch_dir.mkdir()
+    output_path = str(tmp_path / "out.tif")
+    selectors = make_selectors()
+    selectors.download_watch_dir = str(watch_dir)
+
+    client = NgiiWebClient(username="u", password="p", use_mock=False, selectors=selectors)
+    page = MagicMock()
+    popup = MagicMock()
+    popup.get_by_placeholder.return_value.is_visible.return_value = True
+    page.expect_popup.return_value.__enter__.return_value.value = popup
+    playwright_context = MagicMock()
+    playwright_context.new_page.return_value = page
+    monkeypatch.setattr(
+        "jibeon_cad_tool.clients.ngii_web_client.sync_playwright",
+        lambda: _FakePlaywrightCM(playwright_context),
+    )
+    monkeypatch.setattr("time.sleep", lambda _seconds: None)
+    times = iter([0.0, 100.0])
+    monkeypatch.setattr("time.monotonic", lambda: next(times))
+
+    with pytest.raises(RuntimeError):
+        client.download_topo(
+            make_search_result(), CoordSystem.GRS80_MID, MapScale.SCALE_5000, SAMPLE_FEATURES, output_path
+        )
 
 
 class _FakePlaywrightCM:

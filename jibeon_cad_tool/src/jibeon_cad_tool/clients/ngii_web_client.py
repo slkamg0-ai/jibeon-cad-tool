@@ -63,9 +63,10 @@ class NgiiWebClient:
             self._login(page)
             self._search_location(page, result.address, map_scale)
             self._select_category_and_items(page)
+            known_files = self._snapshot_watch_dir()
             self._submit_transfer(page)
             file_path = self._wait_for_downloaded_file(
-                output_path, timeout_seconds=60.0, poll_interval_seconds=2.0, raise_on_timeout=True
+                known_files, output_path, timeout_seconds=60.0, poll_interval_seconds=2.0, raise_on_timeout=True
             )
         return RasterDownloadResult(file_path=file_path, coord_system=coord_system)
 
@@ -90,8 +91,10 @@ class NgiiWebClient:
             self._login(page)
             self._search_location(page, result.address, map_scale)
             self._select_category_and_items(page)
+            known_files = self._snapshot_watch_dir()
             self._submit_transfer(page)
             file_path = self._wait_for_downloaded_file(
+                known_files,
                 output_path,
                 timeout_seconds=timeout_seconds,
                 poll_interval_seconds=poll_interval_seconds,
@@ -103,11 +106,13 @@ class NgiiWebClient:
 
     def _log_sheet_no_best_effort(
         self, result: ParcelSearchResult, map_scale: MapScale, sheet_features: list[dict]
-    ) -> None:
+    ) -> str | None:
         try:
-            find_map_sheet(result.x, result.y, map_scale, sheet_features)
-        except ValueError:
-            pass
+            sheet_no = find_map_sheet(result.x, result.y, map_scale, sheet_features)
+            print(f"도엽 {sheet_no} 부근 다운로드 시도 ({map_scale.value})")
+            return sheet_no
+        except Exception:
+            return None
 
     def _search_location(self, page, address: str, map_scale: MapScale) -> None:
         page.get_by_role("button", name="국토정보맵").click()
@@ -140,23 +145,31 @@ class NgiiWebClient:
         popup.get_by_role("button", name="전송시작").click()
         popup.close()
 
+    def _snapshot_watch_dir(self) -> set:
+        watch_dir = Path(self.selectors.download_watch_dir)
+        return set(watch_dir.iterdir()) if watch_dir.exists() else set()
+
     def _wait_for_downloaded_file(
         self,
+        known_files: set,
         output_path: str,
         timeout_seconds: float,
         poll_interval_seconds: float,
         raise_on_timeout: bool,
     ) -> str | None:
         watch_dir = Path(self.selectors.download_watch_dir)
-        known_files = set(watch_dir.iterdir()) if watch_dir.exists() else set()
         start = time.monotonic()
+        last_seen_size: dict[Path, int] = {}
         while True:
             if watch_dir.exists():
                 new_files = set(watch_dir.iterdir()) - known_files
                 if new_files:
                     newest = max(new_files, key=lambda p: p.stat().st_mtime)
-                    Path(output_path).write_bytes(newest.read_bytes())
-                    return output_path
+                    current_size = newest.stat().st_size
+                    if last_seen_size.get(newest) == current_size:
+                        Path(output_path).write_bytes(newest.read_bytes())
+                        return output_path
+                    last_seen_size[newest] = current_size
             if time.monotonic() - start >= timeout_seconds:
                 if raise_on_timeout:
                     raise RuntimeError(f"{watch_dir}에서 다운로드된 파일을 찾지 못했습니다 (타임아웃)")

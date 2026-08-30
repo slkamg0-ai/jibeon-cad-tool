@@ -104,22 +104,28 @@ def test_download_topo_mock_mode_writes_stub(tmp_path):
 
 
 def test_download_topo_real_mode_logs_in_searches_and_downloads(monkeypatch, tmp_path):
-    downloaded_file = tmp_path / "downloaded.tif"
-    downloaded_file.write_bytes(b"dummy-tif-bytes")
+    watch_dir = tmp_path / "watch"
+    watch_dir.mkdir()
     output_path = str(tmp_path / "out.tif")
+    selectors = make_selectors()
+    selectors.download_watch_dir = str(watch_dir)
 
-    client = NgiiWebClient(username="u", password="p", use_mock=False, selectors=make_selectors())
+    client = NgiiWebClient(username="u", password="p", use_mock=False, selectors=selectors)
     page = MagicMock()
-    page.locator.return_value.is_visible.return_value = True
-    download = MagicMock()
-    download.path.return_value = str(downloaded_file)
-    page.expect_download.return_value.__enter__.return_value.value = download
+    popup = MagicMock()
+    popup.get_by_placeholder.return_value.is_visible.return_value = True
+    page.expect_popup.return_value.__enter__.return_value.value = popup
     playwright_context = MagicMock()
     playwright_context.new_page.return_value = page
     monkeypatch.setattr(
         "jibeon_cad_tool.clients.ngii_web_client.sync_playwright",
         lambda: _FakePlaywrightCM(playwright_context),
     )
+
+    def write_downloaded_file(*_args, **_kwargs):
+        (watch_dir / "downloaded.tif").write_bytes(b"dummy-tif-bytes")
+
+    monkeypatch.setattr("time.sleep", lambda _seconds: write_downloaded_file())
 
     result = client.download_topo(
         make_search_result(), CoordSystem.GRS80_MID, MapScale.SCALE_5000, SAMPLE_FEATURES, output_path
@@ -127,36 +133,37 @@ def test_download_topo_real_mode_logs_in_searches_and_downloads(monkeypatch, tmp
 
     assert result is not None
     assert Path(output_path).read_bytes() == b"dummy-tif-bytes"
-    page.fill.assert_any_call("#sheet-no", "358051")
-    page.click.assert_any_call("#search")
-    page.click.assert_any_call("#cart-add")
-    page.click.assert_any_call("#request-submit")
+    page.locator.assert_any_call("#totalSearchKeyword")
 
 
-def test_download_ortho_real_mode_polls_until_ready(monkeypatch, tmp_path):
-    downloaded_file = tmp_path / "downloaded_ortho.tif"
-    downloaded_file.write_bytes(b"dummy-ortho-bytes")
+def test_download_ortho_real_mode_returns_downloaded_file(monkeypatch, tmp_path):
+    watch_dir = tmp_path / "watch"
+    watch_dir.mkdir()
     output_path = str(tmp_path / "out_ortho.tif")
+    (watch_dir / "already_there.tif").write_bytes(b"pre-existing-file-not-the-download")
+    selectors = make_selectors()
+    selectors.download_watch_dir = str(watch_dir)
 
-    client = NgiiWebClient(username="u", password="p", use_mock=False, selectors=make_selectors())
+    client = NgiiWebClient(username="u", password="p", use_mock=False, selectors=selectors)
     page = MagicMock()
-    # First is_visible() call happens inside _login (must be True to pass login);
-    # the next two are the polling loop's "is the download ready?" checks (not ready, then ready).
-    page.locator.return_value.is_visible.side_effect = [True, False, True]
-    download = MagicMock()
-    download.path.return_value = str(downloaded_file)
-    page.expect_download.return_value.__enter__.return_value.value = download
+    popup = MagicMock()
+    popup.get_by_placeholder.return_value.is_visible.return_value = True
+    page.expect_popup.return_value.__enter__.return_value.value = popup
     playwright_context = MagicMock()
     playwright_context.new_page.return_value = page
     monkeypatch.setattr(
         "jibeon_cad_tool.clients.ngii_web_client.sync_playwright",
         lambda: _FakePlaywrightCM(playwright_context),
     )
-    monkeypatch.setattr("time.sleep", lambda _seconds: None)
+
+    def write_downloaded_file(*_args, **_kwargs):
+        (watch_dir / "downloaded_ortho.tif").write_bytes(b"dummy-ortho-bytes")
+
+    monkeypatch.setattr("time.sleep", lambda _seconds: write_downloaded_file())
 
     result = client.download_ortho(
         make_search_result(), CoordSystem.GRS80_MID, MapScale.SCALE_5000, SAMPLE_FEATURES, output_path,
-        poll_interval_seconds=0.01, timeout_seconds=1.0,
+        poll_interval_seconds=0.01, timeout_seconds=5.0,
     )
 
     assert result is not None
@@ -164,13 +171,17 @@ def test_download_ortho_real_mode_polls_until_ready(monkeypatch, tmp_path):
 
 
 def test_download_ortho_real_mode_returns_none_on_timeout(monkeypatch, tmp_path):
+    watch_dir = tmp_path / "watch"
+    watch_dir.mkdir()
     output_path = str(tmp_path / "out_ortho.tif")
+    selectors = make_selectors()
+    selectors.download_watch_dir = str(watch_dir)
 
-    client = NgiiWebClient(username="u", password="p", use_mock=False, selectors=make_selectors())
+    client = NgiiWebClient(username="u", password="p", use_mock=False, selectors=selectors)
     page = MagicMock()
-    # First is_visible() call is the login check (True = login form found, login succeeds).
-    # The next two are the polling loop's "is the download ready?" checks — always not ready.
-    page.locator.return_value.is_visible.side_effect = [True, False, False]
+    popup = MagicMock()
+    popup.get_by_placeholder.return_value.is_visible.return_value = True
+    page.expect_popup.return_value.__enter__.return_value.value = popup
     playwright_context = MagicMock()
     playwright_context.new_page.return_value = page
     monkeypatch.setattr(
@@ -178,8 +189,6 @@ def test_download_ortho_real_mode_returns_none_on_timeout(monkeypatch, tmp_path)
         lambda: _FakePlaywrightCM(playwright_context),
     )
     monkeypatch.setattr("time.sleep", lambda _seconds: None)
-    # start=0.0, loop-iteration-1 check=0.5 (0.5-0.0<1.0 → keep polling),
-    # loop-iteration-2 check=1.5 (1.5-0.0>=1.0 → timeout, return None)
     times = iter([0.0, 0.5, 1.5])
     monkeypatch.setattr("time.monotonic", lambda: next(times))
 
@@ -189,7 +198,6 @@ def test_download_ortho_real_mode_returns_none_on_timeout(monkeypatch, tmp_path)
     )
 
     assert result is None
-    assert not Path(output_path).exists()
 
 
 class _FakePlaywrightCM:

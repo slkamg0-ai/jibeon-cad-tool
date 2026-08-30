@@ -98,6 +98,15 @@
 
 `use_mock`(자동 감지: `NGII_USERNAME`/`NGII_PASSWORD` 둘 다 없으면 목업) 로직은 유지한다. 목업 모드에서는 기존과 동일하게 텍스트 스텁 파일을 즉시 작성한다.
 
+### 다운로드 폴더 사용자 지정 (UI 오버라이드)
+
+`config/ngii_selectors.json`의 `download_folder_label`/`download_watch_dir`는 기본값이지만, 사용자마다 로컬 환경(마운트된 드라이브 경로, 사이트에 등록해둔 폴더명)이 다르므로 **UI에서 매 실행마다 오버라이드**할 수 있게 한다.
+
+- `NgiiWebClient.__init__`에 `download_folder_label: str | None = None`, `download_watch_dir: str | None = None` 매개변수를 추가한다. 값이 주어지면(빈 문자열이 아니면) 설정 파일에서 로드한 `self.selectors`의 해당 필드를 덮어쓴다. 값이 없으면 설정 파일 값을 그대로 사용한다(하위 호환).
+- `ExportOptions`에 `download_folder_label: str = ""`, `download_watch_dir: str = ""` 필드를 추가한다(기본값은 빈 문자열 — "설정 파일 기본값 사용"을 의미).
+- `pipeline.py`가 기본 `NgiiWebClient()`를 생성할 때(사용자가 직접 `ngii_client`를 주입하지 않은 경우) `options.download_folder_label`/`options.download_watch_dir`가 비어있지 않으면 그 값으로 `NgiiWebClient(download_folder_label=..., download_watch_dir=...)`를 생성한다.
+- UI(`MainWindow`)에 "저장 폴더명(사이트 등록 이름)"과 "로컬 감시 경로" 두 개의 텍스트 입력란을 추가하고, `collect_export_options()`가 이 값을 `ExportOptions`에 채워 넣는다. **사이트(국토정보플랫폼) 전송관리 팝업은 이미 등록된 폴더 목록에서만 고를 수 있으므로**(임의 경로 직접 입력 불가), 사용자는 미리 사이트에 폴더를 등록해두고 그 폴더명을 여기 입력해야 한다 — 이 앱이 사이트에 새 폴더를 등록해주지는 않는다.
+
 ## 자격증명 관리
 
 - 프로젝트 루트에 `.env` 파일 추가 (`.gitignore`에 등록, 커밋되지 않음)

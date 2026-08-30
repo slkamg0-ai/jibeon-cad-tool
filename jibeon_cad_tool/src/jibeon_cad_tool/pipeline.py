@@ -1,9 +1,10 @@
 import os
 from dataclasses import dataclass
+from pathlib import Path
 
 from shapely.geometry import Polygon
 
-from .clients.ngii_client import NgiiClient
+from .clients.ngii_web_client import NgiiWebClient
 from .clients.vworld_client import VWorldClient
 from .coords import transform_coords
 from .dxf_export import build_cadastral_dxf
@@ -24,10 +25,10 @@ def run_pipeline(
     options: ExportOptions,
     output_dir: str,
     vworld_client: VWorldClient | None = None,
-    ngii_client: NgiiClient | None = None,
+    ngii_client: NgiiWebClient | None = None,
 ) -> PipelineResult:
     vworld_client = vworld_client or VWorldClient()
-    ngii_client = ngii_client or NgiiClient()
+    ngii_client = ngii_client or NgiiWebClient()
     log: list[str] = []
     os.makedirs(output_dir, exist_ok=True)
 
@@ -63,16 +64,36 @@ def run_pipeline(
 
     topo_path = None
     ortho_path = None
+    if options.include_topo or options.include_ortho:
+        sheet_features = _load_sheet_features_for_client(ngii_client)
+
     if options.include_topo:
         log.append("지형도 다운로드")
         topo_path = os.path.join(output_dir, f"{search_result.pnu}_topo.txt")
-        ngii_client.download_topo(search_result, options.coord_system, topo_path)
+        ngii_client.download_topo(
+            search_result, options.coord_system, options.map_scale, sheet_features, topo_path
+        )
     if options.include_ortho:
         log.append("정사영상 다운로드")
-        ortho_path = os.path.join(output_dir, f"{search_result.pnu}_ortho.txt")
-        ngii_client.download_ortho(search_result, options.coord_system, ortho_path)
+        ortho_output_path = os.path.join(output_dir, f"{search_result.pnu}_ortho.txt")
+        ortho_result = ngii_client.download_ortho(
+            search_result, options.coord_system, options.map_scale, sheet_features, ortho_output_path
+        )
+        if ortho_result is not None:
+            ortho_path = ortho_result.file_path
+        else:
+            log.append("정사영상 신청 완료 — 승인 대기 중이라 지금은 다운로드하지 못했습니다. 나중에 국토정보플랫폼에서 직접 확인하세요")
 
     log.append("완료")
     return PipelineResult(
         cadastral_path=cadastral_path, topo_path=topo_path, ortho_path=ortho_path, log=log
     )
+
+
+def _load_sheet_features_for_client(ngii_client) -> list[dict]:
+    if getattr(ngii_client, "use_mock", True):
+        return []
+    from .map_sheet_index import load_index
+
+    default_index_path = Path(__file__).resolve().parent.parent.parent / "data" / "map_sheet_index_fixture.geojson"
+    return load_index(default_index_path)

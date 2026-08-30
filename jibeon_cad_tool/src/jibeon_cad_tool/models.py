@@ -36,3 +36,5 @@ class ExportOptions:
     include_topo: bool = False
     include_ortho: bool = False
     map_scale: MapScale = MapScale.SCALE_5000
+    download_folder_label: str = ""
+    download_watch_dir: str = ""

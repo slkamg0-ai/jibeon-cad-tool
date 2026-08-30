@@ -28,7 +28,13 @@ def run_pipeline(
     ngii_client: NgiiWebClient | None = None,
 ) -> PipelineResult:
     vworld_client = vworld_client or VWorldClient()
-    ngii_client = ngii_client or NgiiWebClient()
+    if ngii_client is None:
+        ngii_kwargs = {}
+        if options.download_folder_label:
+            ngii_kwargs["download_folder_label"] = options.download_folder_label
+        if options.download_watch_dir:
+            ngii_kwargs["download_watch_dir"] = options.download_watch_dir
+        ngii_client = NgiiWebClient(**ngii_kwargs)
     log: list[str] = []
     os.makedirs(output_dir, exist_ok=True)
 

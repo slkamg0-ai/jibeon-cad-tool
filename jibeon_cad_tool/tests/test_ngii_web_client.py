@@ -229,6 +229,36 @@ def test_download_topo_real_mode_raises_on_timeout(monkeypatch, tmp_path):
         )
 
 
+def test_constructor_overrides_download_folder_label_and_watch_dir():
+    client = NgiiWebClient(
+        username="u",
+        password="p",
+        use_mock=True,
+        download_folder_label="MyFolder",
+        download_watch_dir="/custom/watch/dir",
+    )
+
+    assert client.selectors.download_folder_label == "MyFolder"
+    assert client.selectors.download_watch_dir == "/custom/watch/dir"
+
+
+def test_constructor_without_override_keeps_config_defaults():
+    client = NgiiWebClient(username="u", password="p", use_mock=True)
+
+    assert client.selectors.download_folder_label != "MyFolder"
+    assert client.selectors.download_watch_dir != "/custom/watch/dir"
+
+
+def test_constructor_empty_string_override_is_ignored():
+    client = NgiiWebClient(
+        username="u", password="p", use_mock=True, download_folder_label="", download_watch_dir=""
+    )
+    default_client = NgiiWebClient(username="u", password="p", use_mock=True)
+
+    assert client.selectors.download_folder_label == default_client.selectors.download_folder_label
+    assert client.selectors.download_watch_dir == default_client.selectors.download_watch_dir
+
+
 class _FakePlaywrightCM:
     def __init__(self, browser_context):
         self._browser_context = browser_context

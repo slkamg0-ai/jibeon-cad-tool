@@ -37,3 +37,19 @@ def test_map_scale_values():
 def test_export_options_default_map_scale():
     options = ExportOptions(coord_system=CoordSystem.GRS80_MID)
     assert options.map_scale == MapScale.SCALE_5000
+
+
+def test_export_options_default_download_folder_fields():
+    options = ExportOptions(coord_system=CoordSystem.GRS80_MID)
+    assert options.download_folder_label == ""
+    assert options.download_watch_dir == ""
+
+
+def test_export_options_custom_download_folder_fields():
+    options = ExportOptions(
+        coord_system=CoordSystem.GRS80_MID,
+        download_folder_label="Work",
+        download_watch_dir="G:\\내 드라이브\\Work",
+    )
+    assert options.download_folder_label == "Work"
+    assert options.download_watch_dir == "G:\\내 드라이브\\Work"

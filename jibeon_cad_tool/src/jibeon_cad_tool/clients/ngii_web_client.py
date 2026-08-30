@@ -24,11 +24,17 @@ class NgiiWebClient:
         password: str | None = None,
         use_mock: bool | None = None,
         selectors: NgiiSelectors | None = None,
+        download_folder_label: str | None = None,
+        download_watch_dir: str | None = None,
     ):
         self.username = username or os.environ.get("NGII_USERNAME", "")
         self.password = password or os.environ.get("NGII_PASSWORD", "")
         self.use_mock = use_mock if use_mock is not None else not bool(self.username and self.password)
         self.selectors = selectors or load_selectors(DEFAULT_SELECTORS_PATH)
+        if download_folder_label:
+            self.selectors.download_folder_label = download_folder_label
+        if download_watch_dir:
+            self.selectors.download_watch_dir = download_watch_dir
 
     def _login(self, page) -> None:
         page.goto(self.selectors.login_url)

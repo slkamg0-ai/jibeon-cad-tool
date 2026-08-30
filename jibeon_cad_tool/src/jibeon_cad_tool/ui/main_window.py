@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from ..models import BorderShape, CoordSystem, ExportOptions
+from ..models import BorderShape, CoordSystem, ExportOptions, MapScale
 from ..pipeline import run_pipeline
 
 COORD_SYSTEM_LABELS = {
@@ -27,6 +27,11 @@ COORD_SYSTEM_LABELS = {
 BORDER_SHAPE_LABELS = {
     BorderShape.RECTANGLE: "사각형",
     BorderShape.CIRCLE: "원형",
+}
+
+MAP_SCALE_LABELS = {
+    MapScale.SCALE_5000: "1:5,000",
+    MapScale.SCALE_1000: "1:1,000",
 }
 
 
@@ -52,6 +57,10 @@ class MainWindow(QMainWindow):
         for border_shape in BorderShape:
             self.border_shape_combo.addItem(BORDER_SHAPE_LABELS[border_shape], border_shape)
 
+        self.map_scale_combo = QComboBox()
+        for map_scale in MapScale:
+            self.map_scale_combo.addItem(MAP_SCALE_LABELS[map_scale], map_scale)
+
         self.run_button = QPushButton("실행")
         self.log_view = QPlainTextEdit()
         self.log_view.setReadOnly(True)
@@ -69,6 +78,7 @@ class MainWindow(QMainWindow):
         form_layout.addRow(self.include_ortho_checkbox)
         form_layout.addRow("버퍼 거리(m):", self.buffer_input)
         form_layout.addRow("도곽 형태:", self.border_shape_combo)
+        form_layout.addRow("축척:", self.map_scale_combo)
 
         layout = QVBoxLayout()
         layout.addLayout(form_layout)
@@ -88,6 +98,7 @@ class MainWindow(QMainWindow):
             border_shape=self.border_shape_combo.currentData(),
             include_topo=self.include_topo_checkbox.isChecked(),
             include_ortho=self.include_ortho_checkbox.isChecked(),
+            map_scale=self.map_scale_combo.currentData(),
         )
 
     def append_log(self, message: str) -> None:

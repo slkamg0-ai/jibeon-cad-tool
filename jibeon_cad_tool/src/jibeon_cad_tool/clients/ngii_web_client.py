@@ -27,12 +27,17 @@ class NgiiWebClient:
 
     def _login(self, page) -> None:
         page.goto(self.selectors.login_url)
-        page.click(self.selectors.login_trigger_selector)
-        if not page.locator(self.selectors.username_selector).is_visible():
+        page.get_by_role("link", name="로그인").click()
+        with page.expect_popup() as popup_info:
+            page.get_by_role("link", name=self.selectors.id_login_link_name).click()
+        popup = popup_info.value
+        username_field = popup.get_by_placeholder(self.selectors.username_placeholder)
+        if not username_field.is_visible():
             raise RuntimeError("국토정보플랫폼 로그인 폼을 찾을 수 없습니다")
-        page.fill(self.selectors.username_selector, self.username)
-        page.fill(self.selectors.password_selector, self.password)
-        page.click(self.selectors.login_submit_selector)
+        username_field.fill(self.username)
+        popup.get_by_placeholder(self.selectors.password_placeholder).fill(self.password)
+        popup.get_by_role("button", name=self.selectors.login_submit_button_name).click()
+        popup.close()
 
     def download_topo(
         self,

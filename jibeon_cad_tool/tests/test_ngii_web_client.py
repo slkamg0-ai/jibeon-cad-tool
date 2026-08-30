@@ -11,17 +11,15 @@ from jibeon_cad_tool.models import CoordSystem, MapScale, ParcelSearchResult
 def make_selectors() -> NgiiSelectors:
     return NgiiSelectors(
         login_url="https://map.ngii.go.kr",
-        login_trigger_selector="#login-trigger",
-        username_selector="#username",
-        password_selector="#password",
-        login_submit_selector="#login-submit",
-        catalog_url="https://map.ngii.go.kr/pd/ctlsSvc/ctlsSvc.do",
-        scale_select_selector="#scale",
-        sheet_no_input_selector="#sheet-no",
-        search_button_selector="#search",
-        cart_add_selector="#cart-add",
-        request_submit_selector="#request-submit",
-        download_link_selector="#download-link",
+        id_login_link_name="아이디 로그인 ...",
+        username_placeholder="아이디 placeholder",
+        password_placeholder="비밀번호 placeholder",
+        login_submit_button_name="회원 들어가기",
+        search_keyword_selector="#totalSearchKeyword",
+        map_pin_click_selector=".ol-unselectable > div:nth-child(3)",
+        map_click_count=2,
+        download_folder_label="Work",
+        download_watch_dir="/tmp/ngii-downloads",
     )
 
 
@@ -43,23 +41,31 @@ def test_does_not_default_to_mock_when_credentials_present(monkeypatch):
     assert client.use_mock is False
 
 
-def test_login_fills_credentials_and_clicks_submit():
+def test_login_opens_popup_and_fills_credentials():
     client = NgiiWebClient(username="user1", password="pass1", use_mock=False, selectors=make_selectors())
     page = MagicMock()
-    page.locator.return_value.is_visible.return_value = True
+    popup = MagicMock()
+    popup.get_by_placeholder.return_value.is_visible.return_value = True
+    page.expect_popup.return_value.__enter__.return_value.value = popup
 
     client._login(page)
 
     page.goto.assert_called_once_with("https://map.ngii.go.kr")
-    page.fill.assert_any_call("#username", "user1")
-    page.fill.assert_any_call("#password", "pass1")
-    page.click.assert_any_call("#login-submit")
+    page.get_by_role.assert_any_call("link", name="로그인")
+    popup.get_by_placeholder.assert_any_call("아이디 placeholder")
+    popup.get_by_placeholder.assert_any_call("비밀번호 placeholder")
+    popup.get_by_placeholder.return_value.fill.assert_any_call("user1")
+    popup.get_by_placeholder.return_value.fill.assert_any_call("pass1")
+    popup.get_by_role.assert_any_call("button", name="회원 들어가기")
+    popup.close.assert_called_once()
 
 
 def test_login_raises_when_login_form_never_becomes_visible():
     client = NgiiWebClient(username="user1", password="pass1", use_mock=False, selectors=make_selectors())
     page = MagicMock()
-    page.locator.return_value.is_visible.return_value = False
+    popup = MagicMock()
+    popup.get_by_placeholder.return_value.is_visible.return_value = False
+    page.expect_popup.return_value.__enter__.return_value.value = popup
 
     with pytest.raises(RuntimeError):
         client._login(page)

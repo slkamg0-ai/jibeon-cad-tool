@@ -75,7 +75,12 @@ def _parse_cadastral_response(data: dict, result: ParcelSearchResult) -> tuple[l
     parcels: list[Polygon] = []
     target_index = None
     for idx, feature in enumerate(features):
-        coords = feature["geometry"]["coordinates"][0]
+        geometry = feature["geometry"]
+        if geometry.get("type") == "MultiPolygon":
+            # 실 VWorld 응답은 단일 필지도 MultiPolygon으로 감싸서 내려주는 경우가 있음 — 첫 폴리곤의 외곽 링만 사용
+            coords = geometry["coordinates"][0][0]
+        else:
+            coords = geometry["coordinates"][0]
         polygon = Polygon(coords)
         parcels.append(polygon)
         if feature.get("properties", {}).get("pnu") == result.pnu:

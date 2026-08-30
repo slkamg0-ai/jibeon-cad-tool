@@ -54,44 +54,28 @@
 7. 전송관리 팝업에서 "전체 다운로드" 클릭 → 웹페이지 안에 목록으로 뜨는 저장 폴더(예: 로컬에 마운트된 구글드라이브 경로) 항목을 텍스트로 클릭해 선택 → "전송시작" 클릭 → 팝업 닫힘
 8. 실제 파일은 위에서 선택한 로컬 폴더에 저장되므로, 앱이 그 폴더를 감시해 새로 생성된 파일을 찾아 `output_path`로 복사한다
 
-### 셀렉터를 "단계 목록(macro)"으로 저장
+### 캡처된 흐름을 코드로 직접 구현 (범용 인터프리터 대신)
 
-기존 설계는 `NgiiSelectors`를 고정 필드(로그인 폼, 검색 폼, 장바구니 버튼 등)로 구성했으나, 실제 흐름은 순차적이고 페이지마다 다른 형태의 액션(클릭/입력/팝업 전환)이 섞여 있어 고정 필드로 표현하기 어렵다. 대신 `config/ngii_selectors.json`을 다음과 같이 **단계별 액션 목록**으로 재구성한다:
+당초 이 문서 초안은 셀렉터를 JSON "단계 목록(macro)" 형태로 저장하고 이를 해석하는 범용 인터프리터를 만드는 방향을 검토했으나, 이미 사용자가 `playwright codegen`으로 실제 동작하는 흐름 전체를 캡처해두었으므로 그 값을 그대로 Python 코드에 직접 반영하는 것이 더 단순하고 테스트하기 쉽다 (이전 태스크들의 `_login`/`_request_sheet` 패턴과 동일). 범용 DSL 인터프리터는 만들지 않는다.
+
+대신 **변하기 쉽거나 환경에 따라 달라지는 값만** `config/ngii_selectors.json`에 남긴다:
 
 ```json
 {
   "login_url": "https://map.ngii.go.kr",
-  "login_steps": [
-    {"action": "click", "by": "role_link", "value": "로그인"},
-    {"action": "click_popup", "by": "role_link", "value": "아이디 로그인 ..."},
-    {"action": "fill_popup", "by": "placeholder", "value": "아이디 (영문, 숫자, 혼합 6~12자리)", "arg": "username"},
-    {"action": "fill_popup", "by": "placeholder", "value": "비밀번호 (영문, 숫자, 특수문자 10자~15자)", "arg": "password"},
-    {"action": "click_popup", "by": "role_button", "value": "회원 들어가기"},
-    {"action": "close_popup"}
-  ],
-  "location_search_steps": [
-    {"action": "click", "by": "role_button", "value": "국토정보맵"},
-    {"action": "click", "by": "role_link", "value": "통합지도검색"},
-    {"action": "fill", "by": "css", "value": "#totalSearchKeyword", "arg": "address"},
-    {"action": "press", "by": "css", "value": "#totalSearchKeyword", "arg": "Enter"},
-    {"action": "click", "by": "role_button", "value": "간편지도 검색"},
-    {"action": "click", "by": "role_button", "value": "인덱스"},
-    {"action": "click", "by": "role_button", "value": ":5,000", "arg_by_scale": true}
-  ],
-  "map_container_selector": "PLACEHOLDER_지도_캔버스_컨테이너_셀렉터",
+  "id_login_link_name": "아이디 로그인 국토정보플랫폼 회원가입시 등록한 아이디와 비밀번호를 이용하여 로그인하는 서비스입니다",
+  "username_placeholder": "아이디 (영문, 숫자, 혼합 6~12자리)",
+  "password_placeholder": "비밀번호 (영문, 숫자, 특수문자 10자~15자)",
+  "login_submit_button_name": "회원 들어가기",
+  "search_keyword_selector": "#totalSearchKeyword",
+  "map_pin_click_selector": ".ol-unselectable > div:nth-child(3)",
   "map_click_count": 2,
-  "item_selection_steps": [
-    "PLACEHOLDER_이번_캡처된_카테고리_체크박스_클릭_순서_그대로"
-  ],
-  "download_steps": [
-    "PLACEHOLDER_다운로드_모달_전송관리_팝업_흐름"
-  ],
-  "download_folder_label": "PLACEHOLDER_전송관리에서_클릭할_저장_폴더_텍스트",
-  "download_watch_dir": "PLACEHOLDER_실제_파일이_저장되는_로컬_경로"
+  "download_folder_label": "PLACEHOLDER_전송관리에서_클릭할_저장_폴더_텍스트_사용자_환경에_맞게_설정",
+  "download_watch_dir": "PLACEHOLDER_실제_파일이_저장되는_로컬_경로_사용자_환경에_맞게_설정"
 }
 ```
 
-`NgiiWebClient`는 각 단계 목록을 순서대로 해석·실행하는 작은 인터프리터를 가진다 (`action`에 따라 `page.get_by_role/get_by_placeholder/locator(css)` 등으로 분기). `arg`가 있으면 호출 시점의 실제 값(아이디/비밀번호/주소)으로 치환한다.
+`map_pin_click_selector`는 이번 캡처에서 그대로 가져온 값이다(사용자가 위험을 인지하고 이번 캡처 그대로 사용을 승인함 — 다른 지번/축척 조합에서 깨질 수 있음을 "미해결" 항목에 기록). `download_folder_label`/`download_watch_dir`는 사용자마다 다른 로컬 환경(구글드라이브 마운트 경로 등)이라 값 자체는 실행 환경에서 채워야 하므로 플레이스홀더로 남긴다. 카테고리 선택(수치지도 → 수치지형도(DXF파일))과 체크박스 클릭 순서, 전송관리 팝업 흐름은 캡처된 그대로 Python 코드(`_select_category_and_items`, `_submit_transfer` 등 메서드)에 직접 구현한다.
 
 ### 좌표 → 도엽번호 변환 (용도 변경)
 
@@ -103,12 +87,12 @@
 
 새 클라이언트 `NgiiWebClient` (기존 `NgiiClient`를 대체하되, 목업 모드는 그대로 유지 — `use_mock` 플래그로 목업/실제 웹 자동화를 전환):
 
-1. **로그인**: `login_steps`를 재생. 실패 시(팝업의 로그인 폼이 뜨지 않거나 로그인 후에도 로그인 상태가 아니면) 즉시 예외 발생, 재시도하지 않음(계정 잠금 방지)
-2. **위치 검색 및 선택**: `location_search_steps`를 재생하며 주소·축척 값을 채워 넣고, `map_container_selector`로 지도 요소를 찾아 bounding box 중심을 `map_click_count`회 클릭
-3. **자료 선택 및 신청**: `item_selection_steps`를 순서대로 재생 (검색 결과 구성이 달라지면 깨질 수 있음을 코드 주석과 로그에 명시)
+1. **로그인** (`_login`): 팝업을 열고 아이디/비밀번호를 입력해 로그인. 팝업의 로그인 폼이 뜨지 않거나 로그인 후에도 로그인 상태가 아니면 즉시 예외 발생, 재시도하지 않음(계정 잠금 방지)
+2. **위치 검색 및 선택** (`_search_location`): 주소로 검색 → 간편지도 검색 → 인덱스 토글 → 축척 버튼 클릭 → `map_pin_click_selector`를 `map_click_count`회 클릭
+3. **자료 선택 및 신청** (`_select_category_and_items`): 캡처된 순서 그대로 카테고리·체크박스 클릭 (검색 결과 구성이 달라지면 깨질 수 있음을 코드 주석과 로그에 명시)
    - **수치지형도**: 신청 직후 다운로드 흐름을 즉시 진행
    - **정사영상**: 신청 후 처리 상태를 짧은 간격(예: 15초)으로 폴링. 준비되면 다운로드. **10분 타임아웃**을 넘으면 예외 대신 `None`을 반환(전체 파이프라인을 실패시키지 않음)
-4. **다운로드**: `download_steps`를 재생해 전송관리 팝업에서 "전체 다운로드" → `download_folder_label` 텍스트 클릭 → "전송시작". 이후 `download_watch_dir`를 짧게 폴링해 새로 생성된 파일을 찾아 `output_path`로 복사하고 `RasterDownloadResult(file_path, coord_system)`을 반환
+4. **다운로드** (`_submit_transfer`): "다운로드" → 모달 → 전송관리 팝업에서 "전체 다운로드" → `download_folder_label` 텍스트 클릭 → "전송시작". 이후 `download_watch_dir`를 짧게 폴링해 새로 생성된 파일을 찾아 `output_path`로 복사하고 `RasterDownloadResult(file_path, coord_system)`을 반환
 
 ### 목업 모드 유지
 
@@ -140,6 +124,6 @@
 
 - Playwright 자동화는 국토정보플랫폼 사이트 구조 변경에 취약함 — 실패 시 명확한 에러와 함께 수동 확인을 안내하는 것으로 이번 범위에서는 충분히 처리
 - **`item_selection_steps`(자료 선택 체크박스 클릭 순서)는 이번 한 번의 캡처 세션에서만 검증됨** — 검색 결과 개수·구성이 달라지는 다른 지번/축척 조합에서는 깨질 수 있다는 위험을 사용자가 인지하고 승인한 상태로 진행. 실 사용 중 실패가 반복되면 이 부분을 좀 더 견고한 방식(예: 텍스트 매칭 기반 동적 탐색)으로 재설계 필요
-- `map_container_selector`, `item_selection_steps`, `download_steps`, `download_folder_label`, `download_watch_dir`는 사용자가 캡처한 `playwright codegen` 결과를 바탕으로 구현 단계에서 실제 값으로 채운다 (이미 1차 캡처를 확보했으므로 이번 플랜에서 반영 가능 — 더 이상 순수 플레이스홀더가 아님)
+- `download_folder_label`/`download_watch_dir`는 사용자 로컬 환경(구글드라이브 마운트 경로 등)에 따라 달라지므로 플레이스홀더로 남기고, 실행 전 사용자가 자신의 환경에 맞게 채워야 한다. 나머지 캡처된 값(로그인 흐름, 검색어 셀렉터, 지도 클릭 셀렉터, 카테고리/체크박스 순서)은 이미 확보되었으므로 이번 플랜에서 코드로 직접 반영한다
 - 도엽코드 인덱스 데이터셋(공공데이터포털 원본)은 이제 UI 자동화에 쓰이지 않고 로그·디버깅 참고용으로만 남으므로, 실 전국 데이터셋 확보의 우선순위는 낮아짐 — 필요해지면 별도로 진행
 - 다운로드된 파일이 실제로 로컬 드라이브(예: 마운트된 구글드라이브 경로)에 나타나기까지 약간의 지연이 있을 수 있어, `download_watch_dir` 폴링에 적절한 타임아웃이 필요함

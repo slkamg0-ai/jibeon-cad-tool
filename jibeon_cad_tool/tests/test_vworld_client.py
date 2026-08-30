@@ -1,8 +1,8 @@
 import pytest
 
-from jibeon_cad_tool.models import CoordSystem
+from jibeon_cad_tool.models import CoordSystem, ParcelSearchResult
 from jibeon_cad_tool.clients import mock_data
-from jibeon_cad_tool.clients.vworld_client import VWorldClient, VWORLD_SEARCH_URL
+from jibeon_cad_tool.clients.vworld_client import VWorldClient, VWORLD_SEARCH_URL, VWORLD_DATA_URL
 
 
 def test_search_parcel_mock_mode_returns_result():
@@ -20,13 +20,6 @@ def test_download_cadastral_mock_mode_includes_target_parcel():
     assert len(parcels) >= 1
     target = parcels[target_index]
     assert target.contains(target.centroid)
-
-
-def test_download_cadastral_without_mock_raises_not_implemented():
-    client = VWorldClient(api_key="dummy-key", use_mock=False)
-    search_result = mock_data.mock_search_parcel("테스트")
-    with pytest.raises(NotImplementedError):
-        client.download_cadastral(search_result)
 
 
 def test_vworld_client_defaults_to_mock_when_no_api_key(monkeypatch):
@@ -72,3 +65,95 @@ def test_search_parcel_real_mode_raises_when_no_items(requests_mock):
 
     with pytest.raises(ValueError):
         client.search_parcel("존재하지 않는 주소")
+
+
+def test_download_cadastral_real_mode_parses_feature_collection(requests_mock):
+    search_result = ParcelSearchResult(
+        pnu="1111010100100010000", address="서울 종로구 1", x=198000.0, y=453000.0,
+        coord_system=CoordSystem.GRS80_MID,
+    )
+    requests_mock.get(
+        VWORLD_DATA_URL,
+        json={
+            "response": {
+                "result": {
+                    "featureCollection": {
+                        "features": [
+                            {
+                                "properties": {"pnu": "1111010100100010000"},
+                                "geometry": {
+                                    "coordinates": [
+                                        [[197990.0, 452990.0], [198010.0, 452990.0], [198010.0, 453010.0], [197990.0, 453010.0], [197990.0, 452990.0]]
+                                    ]
+                                },
+                            },
+                            {
+                                "properties": {"pnu": "1111010100100020000"},
+                                "geometry": {
+                                    "coordinates": [
+                                        [[198050.0, 452990.0], [198070.0, 452990.0], [198070.0, 453010.0], [198050.0, 453010.0], [198050.0, 452990.0]]
+                                    ]
+                                },
+                            },
+                        ]
+                    }
+                }
+            }
+        },
+    )
+
+    client = VWorldClient(api_key="real-key", use_mock=False)
+    parcels, target_index = client.download_cadastral(search_result)
+
+    assert len(parcels) == 2
+    assert target_index == 0
+    assert parcels[0].contains(parcels[0].centroid)
+
+
+def test_download_cadastral_real_mode_falls_back_to_spatial_containment(requests_mock):
+    search_result = ParcelSearchResult(
+        pnu="9999999999999999999", address="서울 종로구 1", x=198000.0, y=453000.0,
+        coord_system=CoordSystem.GRS80_MID,
+    )
+    requests_mock.get(
+        VWORLD_DATA_URL,
+        json={
+            "response": {
+                "result": {
+                    "featureCollection": {
+                        "features": [
+                            {
+                                "properties": {"pnu": "1111010100100010000"},
+                                "geometry": {
+                                    "coordinates": [
+                                        [[197990.0, 452990.0], [198010.0, 452990.0], [198010.0, 453010.0], [197990.0, 453010.0], [197990.0, 452990.0]]
+                                    ]
+                                },
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+    )
+
+    client = VWorldClient(api_key="real-key", use_mock=False)
+    parcels, target_index = client.download_cadastral(search_result)
+
+    assert target_index == 0
+
+
+def test_download_cadastral_real_mode_raises_when_no_features(requests_mock):
+    search_result = ParcelSearchResult(
+        pnu="1111010100100010000", address="서울 종로구 1", x=198000.0, y=453000.0,
+        coord_system=CoordSystem.GRS80_MID,
+    )
+    requests_mock.get(
+        VWORLD_DATA_URL,
+        json={"response": {"result": {"featureCollection": {"features": []}}}},
+    )
+
+    client = VWorldClient(api_key="real-key", use_mock=False)
+
+    with pytest.raises(ValueError):
+        client.download_cadastral(search_result)

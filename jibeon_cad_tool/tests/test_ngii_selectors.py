@@ -1,3 +1,4 @@
+# tests/test_ngii_selectors.py
 from pathlib import Path
 
 from jibeon_cad_tool.clients.ngii_selectors import load_selectors
@@ -9,31 +10,29 @@ def test_load_selectors_reads_all_fields_from_json():
     selectors = load_selectors(CONFIG_PATH)
 
     assert selectors.login_url == "https://map.ngii.go.kr"
-    assert selectors.catalog_url == "https://map.ngii.go.kr/pd/ctlsSvc/ctlsSvc.do"
-    assert selectors.login_trigger_selector
-    assert selectors.username_selector
-    assert selectors.password_selector
-    assert selectors.login_submit_selector
-    assert selectors.scale_select_selector
-    assert selectors.sheet_no_input_selector
-    assert selectors.search_button_selector
-    assert selectors.cart_add_selector
-    assert selectors.request_submit_selector
-    assert selectors.download_link_selector
+    assert selectors.id_login_link_name
+    assert selectors.username_placeholder
+    assert selectors.password_placeholder
+    assert selectors.login_submit_button_name
+    assert selectors.search_keyword_selector == "#totalSearchKeyword"
+    assert selectors.map_pin_click_selector
+    assert selectors.map_click_count == 2
+    assert selectors.download_folder_label
+    assert selectors.download_watch_dir
 
 
 def test_load_selectors_from_custom_path(tmp_path):
     custom_config = tmp_path / "custom_selectors.json"
     custom_config.write_text(
-        '{"login_url": "https://example.com", "login_trigger_selector": "a",'
-        ' "username_selector": "b", "password_selector": "c", "login_submit_selector": "d",'
-        ' "catalog_url": "https://example.com/catalog",'
-        ' "scale_select_selector": "f", "sheet_no_input_selector": "g", "search_button_selector": "h",'
-        ' "cart_add_selector": "i", "request_submit_selector": "j", "download_link_selector": "k"}',
+        '{"login_url": "https://example.com", "id_login_link_name": "a",'
+        ' "username_placeholder": "b", "password_placeholder": "c",'
+        ' "login_submit_button_name": "d", "search_keyword_selector": "#kw",'
+        ' "map_pin_click_selector": ".pin", "map_click_count": 2,'
+        ' "download_folder_label": "e", "download_watch_dir": "f"}',
         encoding="utf-8",
     )
 
     selectors = load_selectors(custom_config)
 
     assert selectors.login_url == "https://example.com"
-    assert selectors.catalog_url == "https://example.com/catalog"
+    assert selectors.map_click_count == 2

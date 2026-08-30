@@ -1,14 +1,12 @@
 {
   "login_url": "https://map.ngii.go.kr",
-  "login_trigger_selector": "PLACEHOLDER_로그인_버튼_셀렉터_playwright_codegen으로_캡처",
-  "username_selector": "PLACEHOLDER_아이디_입력창_셀렉터",
-  "password_selector": "PLACEHOLDER_비밀번호_입력창_셀렉터",
-  "login_submit_selector": "PLACEHOLDER_로그인_제출_버튼_셀렉터",
-  "catalog_url": "https://map.ngii.go.kr/pd/ctlsSvc/ctlsSvc.do",
-  "scale_select_selector": "PLACEHOLDER_축척_선택_셀렉터",
-  "sheet_no_input_selector": "PLACEHOLDER_도엽번호_입력_셀렉터",
-  "search_button_selector": "PLACEHOLDER_검색_버튼_셀렉터",
-  "cart_add_selector": "PLACEHOLDER_장바구니_담기_버튼_셀렉터",
-  "request_submit_selector": "PLACEHOLDER_신청_제출_버튼_셀렉터",
-  "download_link_selector": "PLACEHOLDER_다운로드_링크_셀렉터"
+  "id_login_link_name": "아이디 로그인 국토정보플랫폼 회원가입시 등록한 아이디와 비밀번호를 이용하여 로그인하는 서비스입니다",
+  "username_placeholder": "아이디 (영문, 숫자, 혼합 6~12자리)",
+  "password_placeholder": "비밀번호 (영문, 숫자, 특수문자 10자~15자)",
+  "login_submit_button_name": "회원 들어가기",
+  "search_keyword_selector": "#totalSearchKeyword",
+  "map_pin_click_selector": ".ol-unselectable > div:nth-child(3)",
+  "map_click_count": 2,
+  "download_folder_label": "PLACEHOLDER_전송관리에서_클릭할_저장_폴더_텍스트_사용자_환경에_맞게_설정",
+  "download_watch_dir": "PLACEHOLDER_실제_파일이_저장되는_로컬_경로_사용자_환경에_맞게_설정"
 }

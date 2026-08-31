@@ -2,6 +2,7 @@ import os
 import time
 from pathlib import Path
 
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
 
 from ..models import CoordSystem, MapScale, ParcelSearchResult
@@ -43,8 +44,10 @@ class NgiiWebClient:
             page.get_by_role("link", name=self.selectors.id_login_link_name).click()
         popup = popup_info.value
         username_field = popup.get_by_placeholder(self.selectors.username_placeholder)
-        if not username_field.is_visible():
-            raise RuntimeError("국토정보플랫폼 로그인 폼을 찾을 수 없습니다")
+        try:
+            username_field.wait_for(state="visible", timeout=10000)
+        except PlaywrightTimeoutError:
+            raise RuntimeError("국토정보플랫폼 로그인 폼을 찾을 수 없습니다") from None
         username_field.fill(self.username)
         popup.get_by_placeholder(self.selectors.password_placeholder).fill(self.password)
         popup.get_by_role("button", name=self.selectors.login_submit_button_name).click()

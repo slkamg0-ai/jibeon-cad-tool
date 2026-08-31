@@ -2,6 +2,7 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 from jibeon_cad_tool.clients.ngii_selectors import NgiiSelectors
 from jibeon_cad_tool.clients.ngii_web_client import NgiiWebClient
@@ -45,7 +46,7 @@ def test_login_opens_popup_and_fills_credentials():
     client = NgiiWebClient(username="user1", password="pass1", use_mock=False, selectors=make_selectors())
     page = MagicMock()
     popup = MagicMock()
-    popup.get_by_placeholder.return_value.is_visible.return_value = True
+    popup.get_by_placeholder.return_value.wait_for.return_value = None
     page.expect_popup.return_value.__enter__.return_value.value = popup
 
     client._login(page)
@@ -64,7 +65,7 @@ def test_login_raises_when_login_form_never_becomes_visible():
     client = NgiiWebClient(username="user1", password="pass1", use_mock=False, selectors=make_selectors())
     page = MagicMock()
     popup = MagicMock()
-    popup.get_by_placeholder.return_value.is_visible.return_value = False
+    popup.get_by_placeholder.return_value.wait_for.side_effect = PlaywrightTimeoutError("timed out")
     page.expect_popup.return_value.__enter__.return_value.value = popup
 
     with pytest.raises(RuntimeError):

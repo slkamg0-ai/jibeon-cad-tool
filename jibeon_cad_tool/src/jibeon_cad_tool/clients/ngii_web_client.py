@@ -154,7 +154,9 @@ class NgiiWebClient:
         page.get_by_role("button", name=category_label, exact=False).click()
         if item_label:
             page.get_by_text(item_label, exact=False).first.click()
-        page.get_by_role("checkbox").click()
+        # 실제 체크박스는 커스텀 스킨(<input type="checkbox"> 위에 <i> 아이콘이 겹쳐진 형태)이라
+        # input을 직접 클릭하면 <i>가 클릭을 가로채 타임아웃난다 — 감싸는 부모 요소를 클릭해야 함
+        page.get_by_role("checkbox").locator("xpath=..").click()
 
     def _submit_transfer(self, page) -> None:
         with page.expect_popup() as popup_info:

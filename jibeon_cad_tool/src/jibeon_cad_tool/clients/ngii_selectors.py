@@ -8,8 +8,6 @@ class NgiiSelectors:
     login_url: str
     id_login_link_name: str
     search_keyword_selector: str
-    map_pin_click_selector: str
-    map_click_count: int
     download_folder_label: str
     download_watch_dir: str
 

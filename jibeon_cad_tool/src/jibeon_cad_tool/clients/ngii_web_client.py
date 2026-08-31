@@ -17,6 +17,15 @@ MAP_SCALE_BUTTON_LABELS = {
     MapScale.SCALE_1000: ":1,000",
 }
 
+# 카테고리 클릭 후 파일 종류를 한 번 더 선택해야 하는 경우의 라벨.
+# 수치지도는 "수치지형도(DXF파일)" 하위 항목을 한 번 더 클릭해야 체크박스가 나타나지만,
+# 정사영상은 카테고리 클릭만으로 바로 체크박스 목록이 나오는 것으로 보여 item_label이 없다
+# (정사영상 경로는 실 계정으로 아직 끝까지 검증되지 않음 — 실패하면 알려달라고 안내 필요).
+TOPO_CATEGORY_LABEL = "수치지도"
+TOPO_ITEM_LABEL = "수치지형도(DXF파일)"
+ORTHO_CATEGORY_LABEL = "정사영상"
+ORTHO_ITEM_LABEL = None
+
 # 사용자가 팝업 창에서 직접 로그인을 완료할 때까지 기다리는 최대 시간.
 # 자동 아이디/비밀번호 입력은 봇 탐지로 조용히 차단되는 것이 확인되어, 로그인은
 # 사용자가 직접 하고 그 이후(검색·다운로드)만 자동화하는 방식으로 전환했다.
@@ -69,13 +78,12 @@ class NgiiWebClient:
             _write_mock_raster_stub(output_path, "TOPO", result, coord_system)
             return RasterDownloadResult(file_path=output_path, coord_system=coord_system)
 
-        self._log_sheet_no_best_effort(result, map_scale, sheet_features)
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch(headless=False)
             page = browser.new_page()
             self._login(page)
-            self._search_location(page, result.address, map_scale)
-            self._select_category_and_items(page)
+            self._search_location(page, result, map_scale, sheet_features)
+            self._select_category_and_items(page, TOPO_CATEGORY_LABEL, TOPO_ITEM_LABEL)
             known_files = self._snapshot_watch_dir()
             self._submit_transfer(page)
             file_path = self._wait_for_downloaded_file(
@@ -97,13 +105,12 @@ class NgiiWebClient:
             _write_mock_raster_stub(output_path, "ORTHO", result, coord_system)
             return RasterDownloadResult(file_path=output_path, coord_system=coord_system)
 
-        self._log_sheet_no_best_effort(result, map_scale, sheet_features)
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch(headless=False)
             page = browser.new_page()
             self._login(page)
-            self._search_location(page, result.address, map_scale)
-            self._select_category_and_items(page)
+            self._search_location(page, result, map_scale, sheet_features)
+            self._select_category_and_items(page, ORTHO_CATEGORY_LABEL, ORTHO_ITEM_LABEL)
             known_files = self._snapshot_watch_dir()
             self._submit_transfer(page)
             file_path = self._wait_for_downloaded_file(
@@ -117,41 +124,37 @@ class NgiiWebClient:
             return None
         return RasterDownloadResult(file_path=file_path, coord_system=coord_system)
 
-    def _log_sheet_no_best_effort(
-        self, result: ParcelSearchResult, map_scale: MapScale, sheet_features: list[dict]
-    ) -> str | None:
-        try:
-            sheet_no = find_map_sheet(result.x, result.y, map_scale, sheet_features)
-            print(f"도엽 {sheet_no} 부근 다운로드 시도 ({map_scale.value})")
-            return sheet_no
-        except Exception:
-            return None
+    def _search_location(
+        self, page, result: ParcelSearchResult, map_scale: MapScale, sheet_features: list[dict]
+    ) -> str:
+        # 도엽번호로 직접 검색하는 방식 — 지도를 클릭해 위치를 고르는 방식은 검색 세션마다
+        # 화면 배치가 달라져 자동화할 수 없음이 확인되어, 좌표 → 도엽번호(map_sheet_index) →
+        # 도엽번호 텍스트 검색 → 검색 결과 목록에서 정확히 일치하는 항목 클릭으로 대체했다.
+        # find_map_sheet가 실패하면(좌표가 인덱스에 없음) 여기서 바로 ValueError가 올라간다.
+        sheet_no = find_map_sheet(result.x, result.y, map_scale, sheet_features)
 
-    def _search_location(self, page, address: str, map_scale: MapScale) -> None:
-        page.get_by_role("button", name="국토정보맵").click()
+        # "국토정보맵" 버튼은 페이지에 2개 있음(상단 메뉴 트리거 / 홈 화면 바로가기 카드) —
+        # 상단 메뉴("메인 메뉴") 쪽으로 정확히 지정해야 드롭다운이 열려 "통합지도검색" 링크가 나타남
+        page.get_by_label("메인 메뉴").get_by_role("button", name="국토정보맵").click()
         page.get_by_role("link", name="통합지도검색").click()
-        page.locator(self.selectors.search_keyword_selector).fill(address)
-        page.locator(self.selectors.search_keyword_selector).press("Enter")
         page.get_by_role("button", name="간편지도 검색").click()
         page.get_by_role("button", name="인덱스").click()
-        page.get_by_role("button", name=MAP_SCALE_BUTTON_LABELS[map_scale]).click()
-        for _ in range(self.selectors.map_click_count):
-            page.locator(self.selectors.map_pin_click_selector).click()
+        # 축척 버튼도 페이지에 2개 있어 "#totalSearch" 영역으로 범위를 좁혀야 정확한 버튼을 클릭함
+        page.locator("#totalSearch").get_by_role("button", name=MAP_SCALE_BUTTON_LABELS[map_scale]).click()
+        page.locator(self.selectors.search_keyword_selector).fill(sheet_no)
+        page.locator(self.selectors.search_keyword_selector).press("Enter")
+        page.get_by_text(sheet_no, exact=True).first.click()
+        return sheet_no
 
-    def _select_category_and_items(self, page) -> None:
-        page.get_by_role("button", name="검색").nth(4).click()
-        page.get_by_role("button", name="수치지도", exact=False).click()
-        page.get_by_role("button", name="수치지형도(DXF파일)", exact=False).click()
-        page.locator("li > label > i").first.click()
-        page.locator("li > label > i").first.click()
-        page.locator("li:nth-child(4) > label > i").first.click()
-        page.locator("li:nth-child(6) > label > i").first.click()
-        page.get_by_role("button", name="다운로드", exact=True).click()
+    def _select_category_and_items(self, page, category_label: str, item_label: str | None) -> None:
+        page.get_by_role("button", name=category_label, exact=False).click()
+        if item_label:
+            page.get_by_text(item_label, exact=False).first.click()
+        page.get_by_role("checkbox").click()
 
     def _submit_transfer(self, page) -> None:
-        page.locator(".headline > label:nth-child(2) > i").click()
         with page.expect_popup() as popup_info:
-            page.locator("#modalPopup").get_by_role("button", name="다운로드").click()
+            page.get_by_role("button", name="다운로드", exact=True).click()
         popup = popup_info.value
         popup.get_by_role("button", name="전체 다운로드").click()
         popup.get_by_text(self.selectors.download_folder_label).click()

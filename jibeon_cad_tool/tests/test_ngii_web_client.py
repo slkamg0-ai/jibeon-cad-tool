@@ -14,8 +14,6 @@ def make_selectors() -> NgiiSelectors:
         login_url="https://map.ngii.go.kr",
         id_login_link_name="아이디 로그인 ...",
         search_keyword_selector="#totalSearchKeyword",
-        map_pin_click_selector=".ol-unselectable > div:nth-child(3)",
-        map_click_count=2,
         download_folder_label="Work",
         download_watch_dir="/tmp/ngii-downloads",
     )
@@ -128,6 +126,12 @@ def test_download_topo_real_mode_logs_in_searches_and_downloads(monkeypatch, tmp
     assert result is not None
     assert Path(output_path).read_bytes() == b"dummy-tif-bytes"
     page.locator.assert_any_call("#totalSearchKeyword")
+    page.locator.return_value.fill.assert_any_call("358051")
+    page.get_by_text.assert_any_call("358051", exact=True)
+    page.get_by_role.assert_any_call("button", name="수치지도", exact=False)
+    page.get_by_text.assert_any_call("수치지형도(DXF파일)", exact=False)
+    page.get_by_role.assert_any_call("checkbox")
+    page.get_by_role.assert_any_call("button", name="다운로드", exact=True)
 
 
 def test_download_ortho_real_mode_returns_downloaded_file(monkeypatch, tmp_path):

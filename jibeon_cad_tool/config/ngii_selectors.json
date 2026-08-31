@@ -2,8 +2,6 @@
   "login_url": "https://map.ngii.go.kr",
   "id_login_link_name": "아이디 로그인 국토정보플랫폼 회원가입시 등록한 아이디와 비밀번호를 이용하여 로그인하는 서비스입니다",
   "search_keyword_selector": "#totalSearchKeyword",
-  "map_pin_click_selector": ".ol-unselectable > div:nth-child(3)",
-  "map_click_count": 2,
   "download_folder_label": "PLACEHOLDER_전송관리에서_클릭할_저장_폴더_텍스트_사용자_환경에_맞게_설정",
   "download_watch_dir": "PLACEHOLDER_실제_파일이_저장되는_로컬_경로_사용자_환경에_맞게_설정"
 }

@@ -7,9 +7,6 @@ from pathlib import Path
 class NgiiSelectors:
     login_url: str
     id_login_link_name: str
-    username_placeholder: str
-    password_placeholder: str
-    login_submit_button_name: str
     search_keyword_selector: str
     map_pin_click_selector: str
     map_click_count: int

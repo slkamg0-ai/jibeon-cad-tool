@@ -11,9 +11,6 @@ def test_load_selectors_reads_all_fields_from_json():
 
     assert selectors.login_url == "https://map.ngii.go.kr"
     assert selectors.id_login_link_name
-    assert selectors.username_placeholder
-    assert selectors.password_placeholder
-    assert selectors.login_submit_button_name
     assert selectors.search_keyword_selector == "#totalSearchKeyword"
     assert selectors.map_pin_click_selector
     assert selectors.map_click_count == 2
@@ -25,8 +22,7 @@ def test_load_selectors_from_custom_path(tmp_path):
     custom_config = tmp_path / "custom_selectors.json"
     custom_config.write_text(
         '{"login_url": "https://example.com", "id_login_link_name": "a",'
-        ' "username_placeholder": "b", "password_placeholder": "c",'
-        ' "login_submit_button_name": "d", "search_keyword_selector": "#kw",'
+        ' "search_keyword_selector": "#kw",'
         ' "map_pin_click_selector": ".pin", "map_click_count": 2,'
         ' "download_folder_label": "e", "download_watch_dir": "f"}',
         encoding="utf-8",

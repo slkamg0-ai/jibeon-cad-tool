@@ -17,6 +17,11 @@ MAP_SCALE_BUTTON_LABELS = {
     MapScale.SCALE_1000: ":1,000",
 }
 
+# 사용자가 팝업 창에서 직접 로그인을 완료할 때까지 기다리는 최대 시간.
+# 자동 아이디/비밀번호 입력은 봇 탐지로 조용히 차단되는 것이 확인되어, 로그인은
+# 사용자가 직접 하고 그 이후(검색·다운로드)만 자동화하는 방식으로 전환했다.
+LOGIN_WAIT_TIMEOUT_MS = 300000
+
 
 class NgiiWebClient:
     def __init__(
@@ -38,20 +43,19 @@ class NgiiWebClient:
             self.selectors.download_watch_dir = download_watch_dir
 
     def _login(self, page) -> None:
+        # 자동 아이디/비밀번호 입력은 국토정보플랫폼의 봇 탐지에 조용히 차단되는 것이
+        # 확인되어, 로그인 창을 열어주고 사용자가 직접 로그인을 완료할 때까지 기다린다.
         page.goto(self.selectors.login_url)
         page.get_by_role("link", name="로그인").click()
         with page.expect_popup() as popup_info:
             page.get_by_role("link", name=self.selectors.id_login_link_name).click()
         popup = popup_info.value
-        username_field = popup.get_by_placeholder(self.selectors.username_placeholder)
         try:
-            username_field.wait_for(state="visible", timeout=10000)
+            popup.wait_for_event("close", timeout=LOGIN_WAIT_TIMEOUT_MS)
         except PlaywrightTimeoutError:
-            raise RuntimeError("국토정보플랫폼 로그인 폼을 찾을 수 없습니다") from None
-        username_field.fill(self.username)
-        popup.get_by_placeholder(self.selectors.password_placeholder).fill(self.password)
-        popup.get_by_role("button", name=self.selectors.login_submit_button_name).click()
-        popup.close()
+            raise RuntimeError(
+                "로그인 대기 시간이 초과되었습니다 — 브라우저 창에서 로그인을 완료한 뒤 다시 시도해 주세요"
+            ) from None
 
     def download_topo(
         self,
@@ -67,7 +71,7 @@ class NgiiWebClient:
 
         self._log_sheet_no_best_effort(result, map_scale, sheet_features)
         with sync_playwright() as playwright:
-            browser = playwright.chromium.launch(headless=True)
+            browser = playwright.chromium.launch(headless=False)
             page = browser.new_page()
             self._login(page)
             self._search_location(page, result.address, map_scale)
@@ -95,7 +99,7 @@ class NgiiWebClient:
 
         self._log_sheet_no_best_effort(result, map_scale, sheet_features)
         with sync_playwright() as playwright:
-            browser = playwright.chromium.launch(headless=True)
+            browser = playwright.chromium.launch(headless=False)
             page = browser.new_page()
             self._login(page)
             self._search_location(page, result.address, map_scale)

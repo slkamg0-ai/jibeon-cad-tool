@@ -143,6 +143,8 @@ def test_download_ortho_real_mode_returns_downloaded_file(monkeypatch, tmp_path)
     popup = MagicMock()
     popup.wait_for_event.return_value = None
     page.expect_popup.return_value.__enter__.return_value.value = popup
+    page.get_by_role.return_value.filter.return_value.count.return_value = 1
+    page.get_by_role.return_value.filter.return_value.nth.return_value.inner_text.return_value = "촬영 2025"
     playwright_context = MagicMock()
     playwright_context.new_page.return_value = page
     monkeypatch.setattr(
@@ -176,6 +178,8 @@ def test_download_ortho_real_mode_returns_none_on_timeout(monkeypatch, tmp_path)
     popup = MagicMock()
     popup.wait_for_event.return_value = None
     page.expect_popup.return_value.__enter__.return_value.value = popup
+    page.get_by_role.return_value.filter.return_value.count.return_value = 1
+    page.get_by_role.return_value.filter.return_value.nth.return_value.inner_text.return_value = "촬영 2025"
     playwright_context = MagicMock()
     playwright_context.new_page.return_value = page
     monkeypatch.setattr(
@@ -193,6 +197,23 @@ def test_download_ortho_real_mode_returns_none_on_timeout(monkeypatch, tmp_path)
 
     assert result is None
     assert not Path(output_path).exists()
+
+
+def test_select_most_recent_ortho_item_picks_highest_year():
+    client = NgiiWebClient(username="u", password="p", use_mock=False, selectors=make_selectors())
+    page = MagicMock()
+    items = page.get_by_role.return_value.filter.return_value
+    items.count.return_value = 3
+    texts = {
+        0: "수도권북부1권역 25cm 촬영 2022위치 인천/37611100",
+        1: "수도권북부1권역 25cm 촬영 2025위치 인천/37611100",
+        2: "수도권북부1권역 25cm 촬영 2019위치 인천/37611100",
+    }
+    items.nth.side_effect = lambda i: MagicMock(inner_text=MagicMock(return_value=texts[i]))
+
+    selected = client._select_most_recent_ortho_item(page, "37611100")
+
+    assert selected.inner_text() == texts[1]
 
 
 def test_download_topo_real_mode_raises_on_timeout(monkeypatch, tmp_path):

@@ -1,4 +1,5 @@
 import os
+import re
 import time
 from pathlib import Path
 
@@ -157,14 +158,26 @@ class NgiiWebClient:
             page.get_by_text(item_label, exact=False).first.click()
             checkbox = page.get_by_role("checkbox")
         else:
-            # 정사영상은 카테고리 클릭만으로는 여러 촬영권역/시기의 항목이 한꺼번에 나열되어
-            # 체크박스가 다수(실 계정 확인 시 164개) 잡히므로, 도엽번호가 포함된 리스트 항목으로
-            # 범위를 좁혀 그중 첫 번째 항목만 선택한다.
-            item = page.get_by_role("listitem").filter(has_text=sheet_no).first
+            # 정사영상은 지형도와 달리 도엽번호 1개가 여러 촬영권역/연도 상품에 걸쳐 포함되는
+            # 구조라(실 계정 확인 시 도엽번호로 필터링해도 127건이 남음), 도엽번호로 좁힌 목록
+            # 중 촬영연도("촬영 2025" 형태 텍스트)가 가장 최근인 항목을 선택한다.
+            item = self._select_most_recent_ortho_item(page, sheet_no)
             checkbox = item.get_by_role("checkbox").first
         # 실제 체크박스는 커스텀 스킨(<input type="checkbox"> 위에 <i> 아이콘이 겹쳐진 형태)이라
         # input을 직접 클릭하면 <i>가 클릭을 가로채 타임아웃난다 — 감싸는 부모 요소를 클릭해야 함
         checkbox.locator("xpath=..").click()
+
+    def _select_most_recent_ortho_item(self, page, sheet_no: str):
+        items = page.get_by_role("listitem").filter(has_text=sheet_no)
+        count = items.count()
+        best_index = 0
+        best_year = -1
+        for i in range(count):
+            match = re.search(r"촬영\s*(\d{4})", items.nth(i).inner_text())
+            if match and int(match.group(1)) > best_year:
+                best_year = int(match.group(1))
+                best_index = i
+        return items.nth(best_index)
 
     def _submit_transfer(self, page) -> None:
         with page.expect_popup() as popup_info:

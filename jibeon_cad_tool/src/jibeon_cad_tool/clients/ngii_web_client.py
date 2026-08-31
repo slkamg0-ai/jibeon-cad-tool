@@ -6,11 +6,12 @@ from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
 
 from ..models import CoordSystem, MapScale, ParcelSearchResult
-from ..map_sheet_index import find_map_sheet
+from ..map_sheet_index import find_map_sheet_in_gpkg
 from .ngii_client import RasterDownloadResult
 from .ngii_selectors import NgiiSelectors, load_selectors
 
 DEFAULT_SELECTORS_PATH = Path(__file__).resolve().parent.parent.parent.parent / "config" / "ngii_selectors.json"
+DEFAULT_SHEET_INDEX_DIR = Path(__file__).resolve().parent.parent.parent.parent / "data"
 
 MAP_SCALE_BUTTON_LABELS = {
     MapScale.SCALE_5000: ":5,000",
@@ -130,8 +131,11 @@ class NgiiWebClient:
         # 도엽번호로 직접 검색하는 방식 — 지도를 클릭해 위치를 고르는 방식은 검색 세션마다
         # 화면 배치가 달라져 자동화할 수 없음이 확인되어, 좌표 → 도엽번호(map_sheet_index) →
         # 도엽번호 텍스트 검색 → 검색 결과 목록에서 정확히 일치하는 항목 클릭으로 대체했다.
-        # find_map_sheet가 실패하면(좌표가 인덱스에 없음) 여기서 바로 ValueError가 올라간다.
-        sheet_no = find_map_sheet(result.x, result.y, map_scale, sheet_features)
+        # 도엽번호는 국토지리정보원이 공식 배포하는 전국 GeoPackage 인덱스(data/*.gpkg)에서
+        # 직접 조회한다 — 찾지 못하면(좌표가 인덱스에 없음) 여기서 바로 ValueError가 올라간다.
+        # sheet_features 매개변수는 이전 설계(로컬 GeoJSON fixture)의 흔적으로 이제 쓰이지
+        # 않는다 — pipeline.py의 공개 시그니처를 바꾸지 않기 위해 남겨두었다.
+        sheet_no = find_map_sheet_in_gpkg(result.x, result.y, map_scale, DEFAULT_SHEET_INDEX_DIR)
 
         # "국토정보맵" 버튼은 페이지에 2개 있음(상단 메뉴 트리거 / 홈 화면 바로가기 카드) —
         # 상단 메뉴("메인 메뉴") 쪽으로 정확히 지정해야 드롭다운이 열려 "통합지도검색" 링크가 나타남

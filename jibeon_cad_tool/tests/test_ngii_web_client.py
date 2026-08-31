@@ -63,21 +63,17 @@ def test_login_raises_when_user_never_completes_login():
         client._login(page)
 
 
-SAMPLE_FEATURES = [
-    {
-        "type": "Feature",
-        "properties": {"scale": "1:5000", "sheet_no": "358051"},
-        "geometry": {
-            "type": "Polygon",
-            "coordinates": [[[198000.0, 453000.0], [199000.0, 453000.0], [199000.0, 454000.0], [198000.0, 454000.0], [198000.0, 453000.0]]],
-        },
-    }
-]
+# NgiiWebClient는 이제 도엽번호를 실제 GeoPackage 인덱스(data/*.gpkg)에서 직접 조회하므로,
+# 예전 GeoJSON fixture 기반 sheet_features 인자는 더 이상 쓰이지 않는다 — pipeline.py의
+# 공개 시그니처를 바꾸지 않기 위해 매개변수 자체는 남아있어 빈 리스트로 채운다.
+SHEET_FEATURES_UNUSED: list[dict] = []
 
 
 def make_search_result() -> ParcelSearchResult:
+    # 실제 국토지리정보원 도엽 인덱스(data/*.gpkg)로 조회했을 때 도엽번호 "37615020"
+    # (1:5,000, 대부020)이 나오는 것으로 실 계정 확인된 좌표 — 경기 화성시 송산면 사강리 671
     return ParcelSearchResult(
-        pnu="1111010100100010000", address="서울 종로구 1", x=198500.0, y=453500.0,
+        pnu="4159132021106710000", address="경기 화성시 만세구 송산면 사강리 671", x=176453.942652644, y=512757.609257195,
         coord_system=CoordSystem.GRS80_MID,
     )
 
@@ -87,7 +83,7 @@ def test_download_topo_mock_mode_writes_stub(tmp_path):
     output_path = str(tmp_path / "topo.txt")
 
     result = client.download_topo(
-        make_search_result(), CoordSystem.GRS80_MID, MapScale.SCALE_5000, SAMPLE_FEATURES, output_path
+        make_search_result(), CoordSystem.GRS80_MID, MapScale.SCALE_5000, SHEET_FEATURES_UNUSED, output_path
     )
 
     assert result.file_path == output_path
@@ -120,14 +116,14 @@ def test_download_topo_real_mode_logs_in_searches_and_downloads(monkeypatch, tmp
     monkeypatch.setattr("time.sleep", lambda _seconds: write_downloaded_file())
 
     result = client.download_topo(
-        make_search_result(), CoordSystem.GRS80_MID, MapScale.SCALE_5000, SAMPLE_FEATURES, output_path
+        make_search_result(), CoordSystem.GRS80_MID, MapScale.SCALE_5000, SHEET_FEATURES_UNUSED, output_path
     )
 
     assert result is not None
     assert Path(output_path).read_bytes() == b"dummy-tif-bytes"
     page.locator.assert_any_call("#totalSearchKeyword")
-    page.locator.return_value.fill.assert_any_call("358051")
-    page.get_by_text.assert_any_call("358051", exact=True)
+    page.locator.return_value.fill.assert_any_call("37615020")
+    page.get_by_text.assert_any_call("37615020", exact=True)
     page.get_by_role.assert_any_call("button", name="수치지도", exact=False)
     page.get_by_text.assert_any_call("수치지형도(DXF파일)", exact=False)
     page.get_by_role.assert_any_call("checkbox")
@@ -160,7 +156,7 @@ def test_download_ortho_real_mode_returns_downloaded_file(monkeypatch, tmp_path)
     monkeypatch.setattr("time.sleep", lambda _seconds: write_downloaded_file())
 
     result = client.download_ortho(
-        make_search_result(), CoordSystem.GRS80_MID, MapScale.SCALE_5000, SAMPLE_FEATURES, output_path,
+        make_search_result(), CoordSystem.GRS80_MID, MapScale.SCALE_5000, SHEET_FEATURES_UNUSED, output_path,
         poll_interval_seconds=0.01, timeout_seconds=5.0,
     )
 
@@ -191,7 +187,7 @@ def test_download_ortho_real_mode_returns_none_on_timeout(monkeypatch, tmp_path)
     monkeypatch.setattr("time.monotonic", lambda: next(times))
 
     result = client.download_ortho(
-        make_search_result(), CoordSystem.GRS80_MID, MapScale.SCALE_5000, SAMPLE_FEATURES, output_path,
+        make_search_result(), CoordSystem.GRS80_MID, MapScale.SCALE_5000, SHEET_FEATURES_UNUSED, output_path,
         poll_interval_seconds=0.01, timeout_seconds=1.0,
     )
 
@@ -223,7 +219,7 @@ def test_download_topo_real_mode_raises_on_timeout(monkeypatch, tmp_path):
 
     with pytest.raises(RuntimeError):
         client.download_topo(
-            make_search_result(), CoordSystem.GRS80_MID, MapScale.SCALE_5000, SAMPLE_FEATURES, output_path
+            make_search_result(), CoordSystem.GRS80_MID, MapScale.SCALE_5000, SHEET_FEATURES_UNUSED, output_path
         )
 
 

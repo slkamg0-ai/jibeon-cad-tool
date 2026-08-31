@@ -14,6 +14,11 @@ class BorderShape(Enum):
     CIRCLE = "circle"
 
 
+class MapScale(Enum):
+    SCALE_5000 = "1:5000"
+    SCALE_1000 = "1:1000"
+
+
 @dataclass
 class ParcelSearchResult:
     pnu: str
@@ -30,3 +35,6 @@ class ExportOptions:
     border_shape: BorderShape = BorderShape.RECTANGLE
     include_topo: bool = False
     include_ortho: bool = False
+    map_scale: MapScale = MapScale.SCALE_5000
+    download_folder_label: str = ""
+    download_watch_dir: str = ""

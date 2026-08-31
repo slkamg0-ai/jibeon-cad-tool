@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from ..models import BorderShape, CoordSystem, ExportOptions
+from ..models import BorderShape, CoordSystem, ExportOptions, MapScale
 from ..pipeline import run_pipeline
 
 COORD_SYSTEM_LABELS = {
@@ -27,6 +27,11 @@ COORD_SYSTEM_LABELS = {
 BORDER_SHAPE_LABELS = {
     BorderShape.RECTANGLE: "사각형",
     BorderShape.CIRCLE: "원형",
+}
+
+MAP_SCALE_LABELS = {
+    MapScale.SCALE_5000: "1:5,000",
+    MapScale.SCALE_1000: "1:1,000",
 }
 
 
@@ -52,6 +57,15 @@ class MainWindow(QMainWindow):
         for border_shape in BorderShape:
             self.border_shape_combo.addItem(BORDER_SHAPE_LABELS[border_shape], border_shape)
 
+        self.map_scale_combo = QComboBox()
+        for map_scale in MapScale:
+            self.map_scale_combo.addItem(MAP_SCALE_LABELS[map_scale], map_scale)
+
+        self.download_folder_label_input = QLineEdit()
+        self.download_folder_label_input.setPlaceholderText("국토정보플랫폼에 미리 등록해둔 폴더명 (예: Work)")
+        self.download_watch_dir_input = QLineEdit()
+        self.download_watch_dir_input.setPlaceholderText("그 폴더의 로컬 경로 (예: G:\\내 드라이브\\Work)")
+
         self.run_button = QPushButton("실행")
         self.log_view = QPlainTextEdit()
         self.log_view.setReadOnly(True)
@@ -69,6 +83,9 @@ class MainWindow(QMainWindow):
         form_layout.addRow(self.include_ortho_checkbox)
         form_layout.addRow("버퍼 거리(m):", self.buffer_input)
         form_layout.addRow("도곽 형태:", self.border_shape_combo)
+        form_layout.addRow("축척:", self.map_scale_combo)
+        form_layout.addRow("NGII 저장 폴더명:", self.download_folder_label_input)
+        form_layout.addRow("NGII 로컬 감시 경로:", self.download_watch_dir_input)
 
         layout = QVBoxLayout()
         layout.addLayout(form_layout)
@@ -88,6 +105,9 @@ class MainWindow(QMainWindow):
             border_shape=self.border_shape_combo.currentData(),
             include_topo=self.include_topo_checkbox.isChecked(),
             include_ortho=self.include_ortho_checkbox.isChecked(),
+            map_scale=self.map_scale_combo.currentData(),
+            download_folder_label=self.download_folder_label_input.text().strip(),
+            download_watch_dir=self.download_watch_dir_input.text().strip(),
         )
 
     def append_log(self, message: str) -> None:

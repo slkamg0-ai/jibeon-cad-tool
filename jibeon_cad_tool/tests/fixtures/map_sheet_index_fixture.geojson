@@ -1,0 +1,21 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {"scale": "1:5000", "sheet_no": "358051"},
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[198000.0, 453000.0], [199000.0, 453000.0], [199000.0, 454000.0], [198000.0, 454000.0], [198000.0, 453000.0]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {"scale": "1:1000", "sheet_no": "35805025"},
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[198000.0, 453000.0], [198500.0, 453000.0], [198500.0, 453500.0], [198000.0, 453500.0], [198000.0, 453000.0]]]
+      }
+    }
+  ]
+}

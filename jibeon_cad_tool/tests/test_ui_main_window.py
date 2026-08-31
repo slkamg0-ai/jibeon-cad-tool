@@ -5,7 +5,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 import pytest
 from PySide6.QtWidgets import QApplication
 
-from jibeon_cad_tool.models import BorderShape, CoordSystem
+from jibeon_cad_tool.models import BorderShape, CoordSystem, MapScale
 from jibeon_cad_tool.ui.main_window import MainWindow
 
 
@@ -48,3 +48,44 @@ def test_append_log_adds_line_to_log_view(qapp):
     window = MainWindow()
     window.append_log("검색: 테스트 주소")
     assert "검색: 테스트 주소" in window.log_view.toPlainText()
+
+
+def test_main_window_has_map_scale_combo(qapp):
+    window = MainWindow()
+    assert window.map_scale_combo.count() == len(MapScale)
+    assert window.map_scale_combo.currentData() == MapScale.SCALE_5000
+
+
+def test_collect_export_options_reflects_map_scale_selection(qapp):
+    window = MainWindow()
+    window.map_scale_combo.setCurrentIndex(list(MapScale).index(MapScale.SCALE_1000))
+
+    options = window.collect_export_options()
+
+    assert options.map_scale == MapScale.SCALE_1000
+
+
+def test_main_window_has_download_folder_inputs(qapp):
+    window = MainWindow()
+    assert window.download_folder_label_input is not None
+    assert window.download_watch_dir_input is not None
+
+
+def test_collect_export_options_reflects_download_folder_inputs(qapp):
+    window = MainWindow()
+    window.download_folder_label_input.setText("Work")
+    window.download_watch_dir_input.setText("G:\\내 드라이브\\Work")
+
+    options = window.collect_export_options()
+
+    assert options.download_folder_label == "Work"
+    assert options.download_watch_dir == "G:\\내 드라이브\\Work"
+
+
+def test_collect_export_options_download_folder_defaults_empty(qapp):
+    window = MainWindow()
+
+    options = window.collect_export_options()
+
+    assert options.download_folder_label == ""
+    assert options.download_watch_dir == ""

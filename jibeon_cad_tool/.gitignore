@@ -1,0 +1,9 @@
+.env
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# run_pipeline output (지적도/지형도/정사영상 다운로드 결과물)
+*_cadastral.dxf
+*_topo.txt
+*_ortho.txt

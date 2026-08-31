@@ -1,11 +1,13 @@
 import os
 
 import requests
+from shapely.geometry import Point, Polygon
 
 from ..models import CoordSystem, ParcelSearchResult
 from . import mock_data
 
 VWORLD_SEARCH_URL = "https://api.vworld.kr/req/search"
+VWORLD_DATA_URL = "https://api.vworld.kr/req/data"
 
 
 class VWorldClient:
@@ -24,20 +26,30 @@ class VWorldClient:
             "type": "address",
             "category": "parcel",
             "format": "json",
+            "crs": "EPSG:5186",
             "key": self.api_key,
         }
         response = requests.get(VWORLD_SEARCH_URL, params=params, timeout=10)
         response.raise_for_status()
         return _parse_search_response(response.json(), address)
 
-    def download_cadastral(
-        self, result: ParcelSearchResult
-    ) -> tuple[list, int]:
+    def download_cadastral(self, result: ParcelSearchResult) -> tuple[list, int]:
         if self.use_mock:
             return mock_data.mock_cadastral_parcels(result)
-        raise NotImplementedError(
-            "실 API 지적도 다운로드 엔드포인트는 API 키 발급 후 연동 예정"
-        )
+
+        params = {
+            "service": "data",
+            "request": "GetFeature",
+            "data": "LP_PA_CBND_BUBUN",
+            "key": self.api_key,
+            "geomFilter": f"POINT({result.x} {result.y})",
+            "format": "json",
+            "crs": "EPSG:5186",
+            "size": "100",
+        }
+        response = requests.get(VWORLD_DATA_URL, params=params, timeout=10)
+        response.raise_for_status()
+        return _parse_cadastral_response(response.json(), result)
 
 
 def _parse_search_response(data: dict, address: str) -> ParcelSearchResult:
@@ -53,3 +65,35 @@ def _parse_search_response(data: dict, address: str) -> ParcelSearchResult:
         y=float(point["y"]),
         coord_system=CoordSystem.GRS80_MID,
     )
+
+
+def _parse_cadastral_response(data: dict, result: ParcelSearchResult) -> tuple[list[Polygon], int]:
+    features = data.get("response", {}).get("result", {}).get("featureCollection", {}).get("features", [])
+    if not features:
+        raise ValueError(f"'{result.pnu}' 주변에서 지적 필지를 찾을 수 없습니다")
+
+    parcels: list[Polygon] = []
+    target_index = None
+    for idx, feature in enumerate(features):
+        geometry = feature["geometry"]
+        if geometry.get("type") == "MultiPolygon":
+            # 실 VWorld 응답은 단일 필지도 MultiPolygon으로 감싸서 내려주는 경우가 있음 — 첫 폴리곤의 외곽 링만 사용
+            coords = geometry["coordinates"][0][0]
+        else:
+            coords = geometry["coordinates"][0]
+        polygon = Polygon(coords)
+        parcels.append(polygon)
+        if feature.get("properties", {}).get("pnu") == result.pnu:
+            target_index = idx
+
+    if target_index is None:
+        point = Point(result.x, result.y)
+        for idx, polygon in enumerate(parcels):
+            if polygon.contains(point):
+                target_index = idx
+                break
+
+    if target_index is None:
+        raise ValueError(f"'{result.pnu}'에 해당하는 필지를 찾지 못했습니다")
+
+    return parcels, target_index

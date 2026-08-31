@@ -83,8 +83,8 @@ class NgiiWebClient:
             browser = playwright.chromium.launch(headless=False)
             page = browser.new_page()
             self._login(page)
-            self._search_location(page, result, map_scale, sheet_features)
-            self._select_category_and_items(page, TOPO_CATEGORY_LABEL, TOPO_ITEM_LABEL)
+            sheet_no = self._search_location(page, result, map_scale, sheet_features)
+            self._select_category_and_items(page, TOPO_CATEGORY_LABEL, TOPO_ITEM_LABEL, sheet_no)
             known_files = self._snapshot_watch_dir()
             self._submit_transfer(page)
             file_path = self._wait_for_downloaded_file(
@@ -110,8 +110,8 @@ class NgiiWebClient:
             browser = playwright.chromium.launch(headless=False)
             page = browser.new_page()
             self._login(page)
-            self._search_location(page, result, map_scale, sheet_features)
-            self._select_category_and_items(page, ORTHO_CATEGORY_LABEL, ORTHO_ITEM_LABEL)
+            sheet_no = self._search_location(page, result, map_scale, sheet_features)
+            self._select_category_and_items(page, ORTHO_CATEGORY_LABEL, ORTHO_ITEM_LABEL, sheet_no)
             known_files = self._snapshot_watch_dir()
             self._submit_transfer(page)
             file_path = self._wait_for_downloaded_file(
@@ -150,13 +150,21 @@ class NgiiWebClient:
         page.get_by_text(sheet_no, exact=True).first.click()
         return sheet_no
 
-    def _select_category_and_items(self, page, category_label: str, item_label: str | None) -> None:
+    def _select_category_and_items(self, page, category_label: str, item_label: str | None, sheet_no: str) -> None:
         page.get_by_role("button", name=category_label, exact=False).click()
         if item_label:
+            # 수치지도는 파일종류(item_label) 클릭으로 해당 도엽 하나로 목록이 좁혀져 체크박스가 1개만 남는다
             page.get_by_text(item_label, exact=False).first.click()
+            checkbox = page.get_by_role("checkbox")
+        else:
+            # 정사영상은 카테고리 클릭만으로는 여러 촬영권역/시기의 항목이 한꺼번에 나열되어
+            # 체크박스가 다수(실 계정 확인 시 164개) 잡히므로, 도엽번호가 포함된 리스트 항목으로
+            # 범위를 좁혀 그중 첫 번째 항목만 선택한다.
+            item = page.get_by_role("listitem").filter(has_text=sheet_no).first
+            checkbox = item.get_by_role("checkbox").first
         # 실제 체크박스는 커스텀 스킨(<input type="checkbox"> 위에 <i> 아이콘이 겹쳐진 형태)이라
         # input을 직접 클릭하면 <i>가 클릭을 가로채 타임아웃난다 — 감싸는 부모 요소를 클릭해야 함
-        page.get_by_role("checkbox").locator("xpath=..").click()
+        checkbox.locator("xpath=..").click()
 
     def _submit_transfer(self, page) -> None:
         with page.expect_popup() as popup_info:

@@ -1,14 +1,36 @@
 import os
+import re
 from dataclasses import dataclass
 
-from shapely.geometry import Polygon
+from shapely.geometry import MultiPolygon, Polygon
 
 from .clients.ngii_client import NgiiClient
 from .clients.vworld_client import VWorldClient
 from .coords import transform_coords
 from .dxf_export import build_cadastral_dxf
-from .geometry import make_buffer_box
+from .geometry import make_border
 from .models import ExportOptions
+
+
+def _transform_polygon(geometry, src, dst):
+    if geometry.geom_type == "MultiPolygon":
+        return MultiPolygon(
+            [Polygon(transform_coords(list(part.exterior.coords), src, dst)) for part in geometry.geoms]
+        )
+    return Polygon(transform_coords(list(geometry.exterior.coords), src, dst))
+
+
+_INVALID_FILENAME_CHARS = re.compile(r'[\\/:*?"<>|]')
+
+
+def _resolve_cadastral_filename(filename: str | None, pnu: str) -> str:
+    name = (filename or "").strip()
+    if not name:
+        return f"{pnu}_cadastral.dxf"
+    name = _INVALID_FILENAME_CHARS.sub("_", name)
+    if not name.lower().endswith(".dxf"):
+        name = f"{name}.dxf"
+    return name
 
 
 @dataclass
@@ -23,6 +45,7 @@ def run_pipeline(
     address: str,
     options: ExportOptions,
     output_dir: str,
+    filename: str | None = None,
     vworld_client: VWorldClient | None = None,
     ngii_client: NgiiClient | None = None,
 ) -> PipelineResult:
@@ -35,12 +58,12 @@ def run_pipeline(
     search_result = vworld_client.search_parcel(address)
 
     log.append("지적도 다운로드")
-    parcels, target_index = vworld_client.download_cadastral(search_result)
+    parcels, labels, target_index = vworld_client.download_cadastral(search_result, options.buffer_meters)
 
     log.append("좌표계 변환")
     # Rebuilds from exterior coords only — interior rings (holes) are not preserved through the coordinate transform.
     transformed_parcels = [
-        Polygon(transform_coords(list(poly.exterior.coords), search_result.coord_system, options.coord_system))
+        _transform_polygon(poly, search_result.coord_system, options.coord_system)
         for poly in parcels
     ]
     center_x, center_y = transform_coords(
@@ -48,8 +71,9 @@ def run_pipeline(
     )[0]
 
     log.append("강조 표시 및 클리핑 및 도곽 생성 후 지적도 저장")
-    clip_box = make_buffer_box(center_x, center_y, options.buffer_meters)
-    cadastral_path = os.path.join(output_dir, f"{search_result.pnu}_cadastral.dxf")
+    clip_box = make_border(center_x, center_y, options.buffer_meters, options.border_shape)
+    cadastral_filename = _resolve_cadastral_filename(filename, search_result.pnu)
+    cadastral_path = os.path.join(output_dir, cadastral_filename)
     build_cadastral_dxf(
         parcels=transformed_parcels,
         target_index=target_index,
@@ -59,6 +83,8 @@ def run_pipeline(
         center_y=center_y,
         buffer_meters=options.buffer_meters,
         output_path=cadastral_path,
+        labels=labels,
+        label_font=options.label_font,
     )
 
     topo_path = None

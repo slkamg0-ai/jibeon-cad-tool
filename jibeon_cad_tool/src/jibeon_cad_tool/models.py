@@ -7,6 +7,7 @@ class CoordSystem(Enum):
     GRS80_WEST = "EPSG:5185"
     GRS80_EAST = "EPSG:5187"
     UTMK = "EPSG:5179"
+    KATEC = "EPSG:5178"
 
 
 class BorderShape(Enum):
@@ -30,3 +31,4 @@ class ExportOptions:
     border_shape: BorderShape = BorderShape.RECTANGLE
     include_topo: bool = False
     include_ortho: bool = False
+    label_font: str = "malgun.ttf"

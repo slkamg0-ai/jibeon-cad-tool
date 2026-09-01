@@ -1,0 +1,19 @@
+# secrets
+.env
+*.env
+
+# python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# pyinstaller build artifacts
+build/
+dist/
+*.spec
+
+# generated output
+jibeon_cad_tool/output/
+jibeon_cad_tool/output*/
+*.dxf
+*.geojson

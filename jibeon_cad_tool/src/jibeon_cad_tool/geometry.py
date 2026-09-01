@@ -1,5 +1,3 @@
-import math
-
 from shapely.geometry import Point, Polygon
 
 from .models import BorderShape
@@ -19,8 +17,10 @@ def clip_geometry(geometry, clip_box: Polygon):
 
 
 def make_border(center_x: float, center_y: float, buffer_meters: float, shape: BorderShape):
+    # This shape doubles as the clip boundary (see pipeline.py), so a CIRCLE
+    # border has radius == buffer_meters, matching the RECTANGLE's half-width —
+    # otherwise parcels would still be clipped to the square underneath it
+    # and the circle would just be decorative.
     if shape == BorderShape.CIRCLE:
-        # Radius uses sqrt(2) so the circle circumscribes the square clip box
-        # (touches all 4 corners) rather than sitting entirely inside it.
-        return Point(center_x, center_y).buffer(buffer_meters * math.sqrt(2), quad_segs=64)
+        return Point(center_x, center_y).buffer(buffer_meters, quad_segs=64)
     return make_buffer_box(center_x, center_y, buffer_meters)

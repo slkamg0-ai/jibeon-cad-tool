@@ -1,5 +1,7 @@
 import sys
 
+from .. import config  # noqa: F401 - loads .env before any client reads API keys
+
 from PySide6.QtWidgets import QApplication
 
 from .main_window import MainWindow

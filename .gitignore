@@ -18,3 +18,4 @@ jibeon_cad_tool/output/
 jibeon_cad_tool/output*/
 *.dxf
 *.geojson
+*.lnk

@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NGII Map Studio - 통합 현황지적지형도 CAD 추출기</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Phosphor Icons -->
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <!-- Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="bg-slate-900 text-slate-100 flex flex-col h-screen overflow-hidden font-sans">
+
+  <!-- Header -->
+  <header class="bg-slate-800/90 border-b border-slate-700 px-5 py-3 flex items-center justify-between shrink-0 z-20 backdrop-blur">
+    <div class="flex items-center space-x-3">
+      <div class="w-9 h-9 rounded-lg bg-gradient-to-tr from-rose-500 via-indigo-500 to-emerald-400 flex items-center justify-center text-white text-xl font-bold shadow-md shadow-rose-500/20">
+        <i class="ph-bold ph-map-trifold"></i>
+      </div>
+      <div>
+        <h1 class="text-base font-bold text-white flex items-center gap-2">
+          NGII Map Studio
+          <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30">
+            VWorld 지적도 + 3D 수치지형도 통합 CAD
+          </span>
+        </h1>
+        <p class="text-xs text-slate-400">지번 검색 지적선·라벨 + 국토정보플랫폼 3D 등고선·건물·도로 원클릭 결합</p>
+      </div>
+    </div>
+
+    <div class="flex items-center space-x-3">
+      <button id="btn-load-sample" class="px-3.5 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition border border-slate-600 shadow-sm">
+        <i class="ph-bold ph-sparkle text-amber-400"></i>
+        <span>샘플 지형도 즉시 체험</span>
+      </button>
+      <a href="https://map.ngii.go.kr" target="_blank" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs flex items-center gap-1 border border-slate-700 transition">
+        <span>국토정보플랫폼</span>
+        <i class="ph ph-arrow-square-out text-slate-400"></i>
+      </a>
+    </div>
+  </header>
+
+  <!-- Main Content Layout -->
+  <div class="flex flex-1 overflow-hidden relative">
+
+    <!-- Left Sidebar: Controls & Layer Tree -->
+    <aside class="w-[450px] bg-slate-850 border-r border-slate-750 flex flex-col shrink-0 h-full overflow-hidden z-10 shadow-xl">
+      
+      <!-- Scrollable Control Area -->
+      <div class="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4">
+        
+        <!-- 1. Real-time Jibeon / Cadastral Search (from jibeon-cad-tool) -->
+        <div class="bg-slate-800/90 rounded-xl border border-rose-900/40 p-3.5 space-y-2.5 shadow-sm">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-rose-300 uppercase tracking-wider flex items-center gap-1.5">
+              <i class="ph-bold ph-map-pin text-rose-400"></i>
+              1. 실시간 지번/지적도 검색 (VWorld)
+            </span>
+            <span id="jibeon-status-badge" class="text-[11px] px-2 py-0.5 rounded bg-slate-700 text-slate-400">
+              미호출
+            </span>
+          </div>
+
+          <div class="space-y-2">
+            <div class="flex gap-1.5">
+              <input type="text" id="jibeon-address-input" placeholder="지번 또는 도로명 (예: 고덕동 2728, 역삼동 737)" class="flex-1 px-3 py-1.5 bg-slate-900 border border-slate-650 rounded-lg text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-rose-400" />
+              <button id="btn-fetch-jibeon" class="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-lg transition shrink-0 flex items-center gap-1 shadow-sm shadow-rose-600/30">
+                <i class="ph-bold ph-magnifying-glass"></i>
+                <span>지적도 호출</span>
+              </button>
+            </div>
+
+            <!-- Buffer & Shape controls -->
+            <div class="flex items-center justify-between text-[11px] text-slate-400 pt-0.5">
+              <div class="flex items-center gap-1.5">
+                <span>클리핑 반경:</span>
+                <select id="jibeon-buffer-select" class="bg-slate-900 border border-slate-650 rounded px-1.5 py-0.5 text-slate-200 text-xs">
+                  <option value="50">50m</option>
+                  <option value="100" selected>100m</option>
+                  <option value="200">200m</option>
+                  <option value="300">300m</option>
+                  <option value="500">500m</option>
+                  <option value="700">700m</option>
+                  <option value="1000">1000m (1km)</option>
+                  <option value="custom">직접 입력...</option>
+                </select>
+                <input type="number" id="jibeon-buffer-custom" min="10" max="2500" step="50" placeholder="1000" class="hidden w-16 px-1.5 py-0.5 bg-slate-900 border border-slate-650 rounded text-slate-200 text-xs text-right focus:outline-none focus:border-rose-400" />
+              </div>
+              <div class="flex items-center gap-1.5">
+                <span>도곽 형태:</span>
+                <select id="jibeon-shape-select" class="bg-slate-900 border border-slate-650 rounded px-1.5 py-0.5 text-slate-200 text-xs">
+                  <option value="rectangle" selected>사각형 도곽</option>
+                  <option value="circle">원형 도곽</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Jibeon Info Card (hidden initially) -->
+            <div id="jibeon-info-card" class="hidden bg-rose-950/40 border border-rose-850 rounded-lg p-2.5 text-xs space-y-1.5">
+              <div class="flex items-center justify-between font-semibold text-rose-300">
+                <span id="jibeon-target-name">고덕동 2728대</span>
+                <span class="px-1.5 py-0.2 bg-rose-500/20 text-rose-300 rounded text-[10px] font-mono">대상필지 (HIGHLIGHT)</span>
+              </div>
+              <div class="flex items-center justify-between text-[11px]">
+                <p id="jibeon-pnu-text" class="text-slate-400 font-mono truncate">PNU: 4122012800127280000</p>
+                <div class="shrink-0 flex items-center gap-1 font-mono text-amber-300">
+                  <i class="ph-bold ph-chart-pie-slice text-xs text-amber-400"></i>
+                  <span id="jibeon-area-text">0.0 m²</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Distance Alert Box (shows when searched parcel is far from uploaded map) -->
+            <div id="distance-alert-box" class="hidden bg-amber-950/60 border border-amber-600/70 rounded-lg p-2.5 text-xs space-y-1.5 text-amber-200">
+              <div class="flex items-center gap-1.5 font-bold text-amber-300">
+                <i class="ph-bold ph-warning text-base text-amber-400"></i>
+                <span id="distance-alert-title">위치 불일치 주의</span>
+              </div>
+              <p id="distance-alert-desc" class="text-[11px] leading-relaxed text-amber-200/90">
+                검색한 지번과 업로드된 수치지형도의 위치가 멀리 떨어져 있어 캐드에서 서로 다른 위치에 그려집니다.
+              </p>
+              <button id="btn-fix-to-topo-center" class="w-full py-1.5 px-2 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded text-xs transition flex items-center justify-center gap-1 shadow">
+                <i class="ph-bold ph-crosshair"></i>
+                <span>수치지형도 위치로 지적도 자동 재호출</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. File Upload Dropzone (Topographic map) -->
+        <div class="bg-slate-800/80 rounded-xl border border-slate-700 p-3.5 space-y-3 shadow-sm">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+              <i class="ph-bold ph-upload-simple text-indigo-400"></i>
+              2. 수치지형도 업로드 (결합/개별)
+            </span>
+            <span id="upload-status-badge" class="text-[11px] px-2 py-0.5 rounded bg-slate-700 text-slate-400">
+              대기 중
+            </span>
+          </div>
+
+          <div id="dropzone" class="border-2 border-dashed border-slate-600 hover:border-indigo-400 rounded-lg p-3 text-center cursor-pointer transition bg-slate-800/50 hover:bg-slate-700/30">
+            <input type="file" id="file-input" class="hidden" accept=".zip,.dxf,.shp" multiple />
+            <i class="ph ph-file-arrow-up text-2xl text-indigo-400 mb-0.5 inline-block"></i>
+            <p class="text-xs text-slate-200 font-medium">국토정보플랫폼 다운로드 파일 드래그 (단일/복수 도엽 동시 지원)</p>
+            <p class="text-[11px] text-slate-400">또는 클릭하여 복수 파일 선택 (.zip, .dxf, .shp)</p>
+          </div>
+
+          <!-- File Info Card (hidden initially) -->
+          <div id="file-info-card" class="hidden bg-slate-750/70 border border-slate-650 rounded-lg p-2.5 text-xs space-y-2">
+            <div class="flex items-center justify-between">
+              <span id="file-name" class="font-semibold text-slate-200 truncate max-w-[240px]">도엽명</span>
+              <span id="file-crs-badge" class="px-2 py-0.5 bg-indigo-500/20 text-indigo-300 rounded text-[11px] font-mono">EPSG:5186</span>
+            </div>
+            <div class="flex items-center justify-between text-slate-400 text-[11px]">
+              <span id="layer-count-info">총 0개 레이어</span>
+              <span id="feat-count-info">0개 객체</span>
+            </div>
+
+            <!-- Auto-detected Location & 1-Click Cadastral Sync Button -->
+            <div id="topo-location-box" class="bg-indigo-950/60 border border-indigo-700/60 rounded-lg p-2.5 text-xs space-y-2">
+              <div class="flex items-start justify-between gap-1 text-indigo-200">
+                <div class="flex items-center gap-1.5 truncate">
+                  <i class="ph-bold ph-map-pin text-rose-400 text-sm shrink-0"></i>
+                  <span class="font-semibold shrink-0">도면 위치:</span>
+                  <span id="topo-detected-addr" class="text-rose-300 font-bold truncate">감지 중...</span>
+                </div>
+                <span class="text-[10px] px-1.5 py-0.2 bg-indigo-500/30 text-indigo-300 rounded shrink-0">자동감지</span>
+              </div>
+              <button id="btn-sync-topo-cadastral" class="w-full py-1.5 px-2.5 bg-gradient-to-r from-rose-600 to-indigo-600 hover:from-rose-500 hover:to-indigo-500 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 shadow transition">
+                <i class="ph-bold ph-link-simple"></i>
+                <span>이 수치지형도 위치의 지적도(지번) 원클릭 결합</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. One-Click Presets -->
+        <div id="presets-section" class="bg-slate-800/80 rounded-xl border border-slate-700 p-3.5 space-y-2.5 shadow-sm">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+              <i class="ph-bold ph-lightning text-amber-400"></i>
+              3. 용도별 원클릭 프리셋
+            </span>
+            <div class="space-x-1">
+              <button id="btn-select-all" class="text-[11px] px-2 py-0.5 rounded bg-slate-700 hover:bg-slate-600 text-slate-300 transition">전체</button>
+              <button id="btn-deselect-all" class="text-[11px] px-2 py-0.5 rounded bg-slate-700 hover:bg-slate-600 text-slate-300 transition">해제</button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-1.5" id="presets-container">
+            <button data-preset="site_analysis" class="preset-btn text-left p-2 rounded-lg bg-slate-750 hover:bg-slate-700 border border-slate-650 transition flex items-center gap-2">
+              <div class="w-7 h-7 rounded bg-red-500/20 text-red-400 flex items-center justify-center shrink-0">
+                <i class="ph-bold ph-buildings"></i>
+              </div>
+              <div class="truncate">
+                <p class="text-xs font-semibold text-slate-200">건축/대지분석</p>
+                <p class="text-[10px] text-slate-400 truncate">지적+건물+도로+하천</p>
+              </div>
+            </button>
+
+            <button data-preset="terrain_3d" class="preset-btn text-left p-2 rounded-lg bg-slate-750 hover:bg-slate-700 border border-slate-650 transition flex items-center gap-2">
+              <div class="w-7 h-7 rounded bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
+                <i class="ph-bold ph-mountains"></i>
+              </div>
+              <div class="truncate">
+                <p class="text-xs font-semibold text-slate-200">3D 등고선/지형</p>
+                <p class="text-[10px] text-slate-400 truncate">등고선+표고+옹벽</p>
+              </div>
+            </button>
+
+            <button data-preset="road_network" class="preset-btn text-left p-2 rounded-lg bg-slate-750 hover:bg-slate-700 border border-slate-650 transition flex items-center gap-2">
+              <div class="w-7 h-7 rounded bg-blue-500/20 text-blue-400 flex items-center justify-center shrink-0">
+                <i class="ph-bold ph-path"></i>
+              </div>
+              <div class="truncate">
+                <p class="text-xs font-semibold text-slate-200">도로/교통망</p>
+                <p class="text-[10px] text-slate-400 truncate">도로경계+중심선+철도</p>
+              </div>
+            </button>
+
+            <button data-preset="hydrology" class="preset-btn text-left p-2 rounded-lg bg-slate-750 hover:bg-slate-700 border border-slate-650 transition flex items-center gap-2">
+              <div class="w-7 h-7 rounded bg-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0">
+                <i class="ph-bold ph-drop"></i>
+              </div>
+              <div class="truncate">
+                <p class="text-xs font-semibold text-slate-200">수계/친수공간</p>
+                <p class="text-[10px] text-slate-400 truncate">하천+저수지+해안선</p>
+              </div>
+            </button>
+          </div>
+
+          <!-- Custom Presets Section -->
+          <div class="pt-2 border-t border-slate-700/60 space-y-1.5">
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] font-medium text-slate-400 flex items-center gap-1">
+                <i class="ph-bold ph-bookmark-simple text-indigo-400"></i>
+                나만의 맞춤 프리셋
+              </span>
+              <button id="btn-save-custom-preset" class="px-2 py-0.5 rounded bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 text-[11px] font-medium border border-indigo-500/40 transition flex items-center gap-1">
+                <i class="ph-bold ph-plus"></i>
+                <span>현재 선택 저장</span>
+              </button>
+            </div>
+            <div id="custom-presets-container" class="flex flex-wrap gap-1 empty:hidden"></div>
+          </div>
+        </div>
+
+        <!-- 4. Layer Tree (3-Tier: 대분류 > 중분류 > 소분류 + 지적도) -->
+        <div class="bg-slate-800/80 rounded-xl border border-slate-700 p-3.5 space-y-3 shadow-sm">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+              <i class="ph-bold ph-tree-structure text-emerald-400"></i>
+              4. 통합 레이어 필터링
+            </span>
+            <span id="selected-summary-badge" class="text-[11px] font-semibold text-emerald-400">
+              0개 선택됨
+            </span>
+          </div>
+
+          <!-- Search Filter -->
+          <div class="relative">
+            <i class="ph ph-magnifying-glass absolute left-2.5 top-2.5 text-slate-400 text-xs"></i>
+            <input type="text" id="layer-search-input" placeholder="코드명 또는 한글 지형지물/지적 검색 (예: 등고선, 지적, B001)" class="w-full pl-7 pr-3 py-1.5 bg-slate-900 border border-slate-650 rounded-lg text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-400" />
+          </div>
+
+          <!-- Hierarchical Tree Container -->
+          <div id="layer-tree-container" class="space-y-2 min-h-[140px]">
+            <div class="text-center py-8 text-slate-500 text-xs">
+              <i class="ph ph-folder-open text-2xl mb-1 inline-block"></i>
+              <p>지번을 검색하거나 지형도 파일을 올리면<br>통합 레이어 트리가 생성됩니다.</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Bottom Sticky Export Bar -->
+      <div class="border-t border-slate-700 bg-slate-800 p-4 space-y-3 shrink-0 shadow-lg">
+        <div class="flex items-center justify-between text-xs">
+          <span class="text-slate-300 font-medium">내보내기 좌표계:</span>
+          <select id="export-crs-select" class="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-indigo-400">
+            <option value="SAME">원본 좌표계 유지 (CAD 권장)</option>
+            <option value="EPSG:5186">EPSG:5186 (Korea 2000 중부원점)</option>
+            <option value="EPSG:5179">EPSG:5179 (UTM-K 통합좌표계)</option>
+            <option value="EPSG:4326">EPSG:4326 (WGS84 위경도)</option>
+          </select>
+        </div>
+
+        <!-- Clipping and CAD Customization Options -->
+        <div class="bg-slate-900/80 border border-slate-700/80 rounded-lg p-2 space-y-1.5">
+          <label class="flex items-center gap-2 text-xs text-slate-200 cursor-pointer select-none">
+            <input type="checkbox" id="clip-to-border-checkbox" checked class="rounded border-slate-600 text-rose-500 focus:ring-0 cursor-pointer" />
+            <span class="font-medium">도곽선(원형/사각형)에 맞춰 수치지형도 자동 클리핑</span>
+          </label>
+          <label class="flex items-center gap-2 text-xs text-slate-200 cursor-pointer select-none">
+            <input type="checkbox" id="dxf-elements-checkbox" checked class="rounded border-slate-600 text-indigo-500 focus:ring-0 cursor-pointer" />
+            <span class="font-medium">방위표, 축척 바, 도면 표제란(Title Block) 자동 생성</span>
+          </label>
+          <label class="flex items-center gap-2 text-xs text-slate-200 cursor-pointer select-none">
+            <input type="checkbox" id="dxf-bylayer-checkbox" checked class="rounded border-slate-600 text-emerald-500 focus:ring-0 cursor-pointer" />
+            <span class="font-medium">CAD 객체 색상 ByLayer 통일 (실무 표준 권장)</span>
+          </label>
+        </div>
+
+        <!-- Export Format Buttons -->
+        <div class="grid grid-cols-4 gap-1.5" id="export-format-selector">
+          <button data-format="dxf" class="fmt-btn active text-center py-2 px-1 rounded-lg bg-indigo-600 text-white border border-indigo-500 text-xs font-semibold flex flex-col items-center justify-center transition">
+            <i class="ph-bold ph-cube text-base mb-0.5"></i>
+            <span>통합 DXF</span>
+          </button>
+          <button data-format="geojson" class="fmt-btn text-center py-2 px-1 rounded-lg bg-slate-700 hover:bg-slate-655 text-slate-200 border border-slate-600 text-xs font-medium flex flex-col items-center justify-center transition">
+            <i class="ph-bold ph-code text-base mb-0.5"></i>
+            <span>GeoJSON</span>
+          </button>
+          <button data-format="shp" class="fmt-btn text-center py-2 px-1 rounded-lg bg-slate-700 hover:bg-slate-655 text-slate-200 border border-slate-600 text-xs font-medium flex flex-col items-center justify-center transition">
+            <i class="ph-bold ph-folder-zip text-base mb-0.5"></i>
+            <span>SHP (ZIP)</span>
+          </button>
+          <button data-format="html" class="fmt-btn text-center py-2 px-1 rounded-lg bg-slate-700 hover:bg-slate-655 text-slate-200 border border-slate-600 text-xs font-medium flex flex-col items-center justify-center transition">
+            <i class="ph-bold ph-globe text-base mb-0.5"></i>
+            <span>HTML 뷰어</span>
+          </button>
+        </div>
+
+        <!-- Main Action Button -->
+        <button id="btn-export-map" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-rose-500 via-indigo-500 to-emerald-500 hover:from-rose-600 hover:to-emerald-600 text-white font-bold text-sm shadow-md shadow-indigo-500/25 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+          <i class="ph-bold ph-download-simple text-base"></i>
+          <span id="export-btn-label">선택 레이어로 통합 도면 생성 & 다운로드</span>
+        </button>
+      </div>
+
+    </aside>
+
+    <!-- Right Area: Interactive Map Viewer -->
+    <main class="flex-1 relative flex flex-col bg-slate-950">
+      
+      <!-- Floating Map Toolbar -->
+      <div class="absolute top-4 left-4 z-[1000] flex items-center gap-2 bg-slate-800/90 backdrop-blur px-3 py-1.5 rounded-xl border border-slate-700 shadow-lg">
+        <span class="text-xs font-semibold text-slate-300 flex items-center gap-1.5 mr-2">
+          <i class="ph-bold ph-map-pin text-rose-400"></i>
+          통합 지적·지형도 미리보기
+        </span>
+        <button id="btn-fit-bounds" title="전체 영역 맞춤" class="w-7 h-7 rounded bg-slate-700 hover:bg-slate-600 text-slate-200 flex items-center justify-center text-sm transition">
+          <i class="ph-bold ph-corners-out"></i>
+        </button>
+        <div class="h-4 w-px bg-slate-650"></div>
+        <!-- Base Map Selector -->
+        <div class="flex items-center gap-1 text-xs">
+          <span class="text-slate-400">배경:</span>
+          <select id="base-layer-select" class="bg-slate-900 border border-slate-650 text-slate-200 text-xs rounded px-2 py-0.5 focus:outline-none">
+            <option value="vworld_sat" selected>국토정보 VWorld (위성영상)</option>
+            <option value="vworld_base">국토정보 VWorld (일반지도)</option>
+            <option value="osm">OpenStreetMap</option>
+            <option value="carto_dark">다크 모드 도면 (Carto)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Elevation Range & Stats Floating Pill -->
+      <div id="elevation-stats-pill" class="hidden absolute bottom-4 left-4 z-[1000] bg-slate-800/90 backdrop-blur px-3.5 py-2 rounded-xl border border-slate-700 text-xs text-slate-300 shadow-lg flex items-center gap-4">
+        <div class="flex items-center gap-1.5">
+          <i class="ph-bold ph-chart-line-up text-amber-400"></i>
+          <span>표고 범위:</span>
+          <span id="stat-elev-range" class="font-bold text-amber-400">-</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <i class="ph-bold ph-shapes text-indigo-400"></i>
+          <span>화면 객체수:</span>
+          <span id="stat-visible-features" class="font-bold text-white">-</span>
+        </div>
+      </div>
+
+      <!-- Map Element -->
+      <div id="map" class="w-full h-full"></div>
+
+      <!-- Loading Overlay -->
+      <div id="loading-overlay" class="hidden absolute inset-0 bg-slate-950/75 backdrop-blur-sm z-[2000] flex flex-col items-center justify-center space-y-3">
+        <div class="w-12 h-12 border-4 border-rose-500/30 border-t-rose-400 rounded-full animate-spin"></div>
+        <p id="loading-text" class="text-sm font-semibold text-slate-200">데이터 처리 중...</p>
+      </div>
+
+    </main>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

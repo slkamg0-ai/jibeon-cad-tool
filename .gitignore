@@ -10,6 +10,7 @@ __pycache__/
 # pyinstaller build artifacts
 build/
 dist/
+dist_onedir/
 *.spec
 
 # generated output

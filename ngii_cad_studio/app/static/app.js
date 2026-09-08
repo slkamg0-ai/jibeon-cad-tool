@@ -60,6 +60,8 @@ const baseLayerSelect = document.getElementById("base-layer-select");
 const loadingOverlay = document.getElementById("loading-overlay");
 const loadingText = document.getElementById("loading-text");
 const btnLoadSample = document.getElementById("btn-load-sample");
+const btnHeaderCombineTopo = document.getElementById("btn-header-combine-topo");
+const btnCardCombineTopo = document.getElementById("btn-card-combine-topo");
 const btnSelectAll = document.getElementById("btn-select-all");
 const btnDeselectAll = document.getElementById("btn-deselect-all");
 const elevationStatsPill = document.getElementById("elevation-stats-pill");
@@ -792,6 +794,80 @@ async function handleSyncTopoCadastral() {
   }
 }
 
+// Parcel-centered 3D Topographic Contour Generator Handler (One-click)
+async function handleGenerateTopoForParcel() {
+  const addr = (jibeonAddressInput && jibeonAddressInput.value.trim()) || 
+               (mobileQuickAddress && mobileQuickAddress.value.trim());
+
+  if (!currentSessionId) {
+    if (addr) {
+      // First fetch cadastral parcel for the address
+      await handleJibeonFetch();
+      if (!currentSessionId) return;
+    } else {
+      alert("💡 먼저 검색창에 지번 또는 주소를 검색해 주세요.\n(예: 고덕동 2728, 역삼동 737, 서초동 1303-37)");
+      if (window.innerWidth < 768 && mobileQuickAddress) {
+        mobileQuickAddress.focus();
+      } else if (jibeonAddressInput) {
+        setMobileDrawer(true);
+        jibeonAddressInput.focus();
+      }
+      return;
+    }
+  }
+
+  const currentAddr = (jibeonAddressInput && jibeonAddressInput.value.trim()) || "현재 위치";
+  showLoading(`'${currentAddr}' 위치의 3D 등고선(수치지형도) 생성 및 결합 중...`);
+
+  try {
+    const res = await fetch("/api/topo/generate-for-current-parcel", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        session_id: currentSessionId,
+        buffer_meters: getBufferMeters(),
+        border_shape: jibeonShapeSelect ? (jibeonShapeSelect.value || "rectangle") : "rectangle"
+      })
+    });
+
+    if (!res.ok) {
+      const errMsg = await parseResponseError(res, "3D 수치지형도 생성 실패");
+      throw new Error(errMsg);
+    }
+
+    const data = await res.json();
+    currentLayers = data.layer_summaries || [];
+
+    // Automatically select the new 3D topo layers (주곡선, 계곡선, 표고점)
+    if (data.topo_layer_keys) {
+      data.topo_layer_keys.forEach(k => selectedLayerKeys.add(k));
+    }
+
+    renderLayerTree();
+    triggerPreviewUpdate();
+
+    if (window.innerWidth < 768) {
+      setMobileDrawer(false);
+    }
+
+    // Success notification toast
+    const toast = document.createElement("div");
+    toast.className = "fixed top-20 left-1/2 -translate-x-1/2 bg-indigo-600/95 text-white text-xs font-bold px-4 py-2 rounded-full shadow-2xl z-[99999] border border-indigo-400 flex items-center gap-2";
+    toast.innerHTML = `<i class="ph-bold ph-check-circle text-base text-emerald-300"></i><span>${data.message || "3D 수치지형도 결합 완료"}</span>`;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+      toast.style.transition = "opacity 0.4s ease";
+      toast.style.opacity = "0";
+      setTimeout(() => toast.remove(), 400);
+    }, 3200);
+
+  } catch (err) {
+    alert("3D 수치지형도 결합 오류: " + err.message);
+  } finally {
+    hideLoading();
+  }
+}
+
 // Upload file handler (Topographic map, single or multi-sheet)
 async function handleFileUpload(fileOrFiles) {
   let fileList = [];
@@ -1355,10 +1431,22 @@ function setupEvents() {
   });
 
   btnExportMap.addEventListener("click", exportCustomMap);
-  btnLoadSample.addEventListener("click", async () => {
-    await loadSampleData();
-    if (window.innerWidth < 768) setMobileDrawer(false);
-  });
+
+  if (btnLoadSample) {
+    btnLoadSample.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      await loadSampleData();
+      if (window.innerWidth < 768) setMobileDrawer(false);
+    });
+  }
+
+  // 3D Topographic Contour Combine Buttons
+  if (btnHeaderCombineTopo) {
+    btnHeaderCombineTopo.addEventListener("click", handleGenerateTopoForParcel);
+  }
+  if (btnCardCombineTopo) {
+    btnCardCombineTopo.addEventListener("click", handleGenerateTopoForParcel);
+  }
 
   // --- Mobile Specific Event Listeners ---
   if (btnMobileToggleDrawer) {
@@ -1419,29 +1507,28 @@ function setupEvents() {
     btn.addEventListener("click", () => {
       const tab = btn.getAttribute("data-tab");
       document.querySelectorAll(".mobile-nav-btn").forEach(b => {
-        b.classList.remove("active", "text-rose-400", "text-emerald-400", "text-indigo-400");
-        b.classList.add("text-slate-400");
+        b.classList.remove("active");
       });
+      btn.classList.add("active");
       
       if (tab === "jibeon") {
-        btn.classList.add("active", "text-rose-400");
-        btn.classList.remove("text-slate-400");
         setMobileDrawer(false);
         if (mobileQuickAddress) {
           mobileQuickAddress.focus();
           mobileQuickAddress.select();
         }
-      } else if (tab === "map") {
-        btn.classList.add("active", "text-indigo-400");
-        btn.classList.remove("text-slate-400");
-        setMobileDrawer(false);
       } else if (tab === "topo") {
-        btn.classList.add("active", "text-indigo-400");
-        btn.classList.remove("text-slate-400");
-        scrollToSection("section-topo");
+        // Direct 1-click 3D topo generation for searched address
+        handleGenerateTopoForParcel();
+      } else if (tab === "map") {
+        setMobileDrawer(false);
+        if (map && vectorLayerGroup && vectorLayerGroup.getLayers().length > 0) {
+          try {
+            const b = vectorLayerGroup.getBounds();
+            if (b.isValid()) map.fitBounds(b, { padding: [40, 40] });
+          } catch(e){}
+        }
       } else if (tab === "export") {
-        btn.classList.add("active", "text-emerald-400");
-        btn.classList.remove("text-slate-400");
         scrollToSection("section-export");
       }
     });

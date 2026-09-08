@@ -17,7 +17,7 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <link rel="stylesheet" href="style.css" />
 </head>
-<body class="bg-slate-900 text-slate-100 flex flex-col h-screen overflow-hidden font-sans">
+<body class="bg-slate-900 text-slate-100 flex flex-col h-screen h-[100dvh] overflow-hidden font-sans">
 
   <!-- Header -->
   <header class="bg-slate-800/95 border-b border-slate-700 px-3 md:px-5 py-2 md:py-3 flex items-center justify-between shrink-0 z-20 backdrop-blur h-14">
@@ -35,16 +35,17 @@
     </div>
 
     <div class="flex items-center space-x-2">
-      <button id="btn-load-sample" class="px-2.5 md:px-3.5 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-semibold flex items-center gap-1 transition border border-slate-600 shadow-sm">
-        <i class="ph-bold ph-sparkle text-amber-400"></i>
-        <span class="hidden xs:inline">샘플 지형도</span>
+      <!-- Direct 3D Topo Generation Button for Current Searched Parcel -->
+      <button id="btn-header-combine-topo" class="px-2.5 md:px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-xs font-bold flex items-center gap-1.5 transition border border-indigo-500/80 shadow-md shadow-indigo-600/25" title="검색한 지번 위치의 3D 등고선(수치지형도) 자동 결합">
+        <i class="ph-bold ph-mountains text-amber-300 text-sm"></i>
+        <span class="text-xs font-bold">3D등고선 결합</span>
       </button>
       <a href="https://map.ngii.go.kr" target="_blank" class="hidden md:flex px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs items-center gap-1 border border-slate-700 transition">
         <span>국토정보플랫폼</span>
         <i class="ph ph-arrow-square-out text-slate-400"></i>
       </a>
       <!-- Mobile Drawer Toggle Button -->
-      <button id="btn-mobile-toggle-drawer" class="md:hidden px-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-1 shadow-sm transition">
+      <button id="btn-mobile-toggle-drawer" class="md:hidden px-2.5 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 active:scale-95 text-white text-xs font-bold flex items-center gap-1 shadow-sm transition border border-slate-600">
         <i id="toggle-drawer-icon" class="ph-bold ph-sliders"></i>
         <span id="toggle-drawer-label">제어판</span>
       </button>
@@ -119,7 +120,7 @@
             </div>
 
             <!-- Jibeon Info Card (hidden initially) -->
-            <div id="jibeon-info-card" class="hidden bg-rose-950/40 border border-rose-850 rounded-lg p-2.5 text-xs space-y-1.5">
+            <div id="jibeon-info-card" class="hidden bg-rose-950/40 border border-rose-850 rounded-lg p-2.5 text-xs space-y-2">
               <div class="flex items-center justify-between font-semibold text-rose-300">
                 <span id="jibeon-target-name">고덕동 2728대</span>
                 <span class="px-1.5 py-0.2 bg-rose-500/20 text-rose-300 rounded text-[10px] font-mono">대상필지 (HIGHLIGHT)</span>
@@ -131,6 +132,11 @@
                   <span id="jibeon-area-text">0.0 m²</span>
                 </div>
               </div>
+              <!-- 1-Click Topo Contour Button for Current Searched Parcel -->
+              <button id="btn-card-combine-topo" class="w-full py-2 px-3 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 active:scale-95 text-white font-bold rounded-lg text-xs transition flex items-center justify-center gap-1.5 shadow-md shadow-indigo-600/30">
+                <i class="ph-bold ph-mountains text-amber-300 text-sm"></i>
+                <span>⛰️ 이 지번 위치의 3D 등고선(수치지형도) 결합</span>
+              </button>
             </div>
 
             <!-- Distance Alert Box (shows when searched parcel is far from uploaded map) -->
@@ -167,6 +173,12 @@
             <i class="ph ph-file-arrow-up text-2xl text-indigo-400 mb-0.5 inline-block"></i>
             <p class="text-xs text-slate-200 font-medium">국토정보플랫폼 다운로드 파일 드래그 (단일/복수 도엽 동시 지원)</p>
             <p class="text-[11px] text-slate-400">또는 클릭하여 복수 파일 선택 (.zip, .dxf, .shp)</p>
+            <div class="pt-2">
+              <button id="btn-load-sample" type="button" class="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-slate-700 hover:bg-slate-600 text-slate-300 text-[11px] font-medium transition border border-slate-600">
+                <i class="ph-bold ph-sparkle text-amber-400"></i>
+                <span>[테스트 예시] 평택 고덕 샘플 DXF 불러오기</span>
+              </button>
+            </div>
           </div>
 
           <!-- File Info Card (hidden initially) -->
@@ -423,22 +435,22 @@
   </div>
 
   <!-- Mobile Bottom Navigation Bar (Visible only on mobile screens < 768px) -->
-  <nav id="mobile-bottom-nav" class="md:hidden fixed bottom-0 inset-x-0 h-14 bg-slate-900/95 backdrop-blur border-t border-slate-750 flex items-center justify-around z-40 pb-safe">
-    <button class="mobile-nav-btn active flex flex-col items-center justify-center text-rose-400 px-4 py-1 transition" data-tab="jibeon">
+  <nav id="mobile-bottom-nav">
+    <button class="mobile-nav-btn active text-rose-400" data-tab="jibeon">
       <i class="ph-bold ph-magnifying-glass text-xl"></i>
       <span class="text-[10px] font-bold mt-0.5">주소검색</span>
     </button>
-    <button class="mobile-nav-btn flex flex-col items-center justify-center text-slate-400 hover:text-slate-200 px-4 py-1 transition" data-tab="map">
+    <button class="mobile-nav-btn text-indigo-400 hover:text-indigo-300" data-tab="topo">
+      <i class="ph-bold ph-mountains text-xl text-amber-300"></i>
+      <span class="text-[10px] font-bold mt-0.5">3D지형도</span>
+    </button>
+    <button class="mobile-nav-btn text-slate-400 hover:text-slate-200" data-tab="map">
       <i class="ph-bold ph-map-trifold text-xl"></i>
       <span class="text-[10px] font-medium mt-0.5">전체지도</span>
     </button>
-    <button class="mobile-nav-btn flex flex-col items-center justify-center text-slate-400 hover:text-slate-200 px-4 py-1 transition" data-tab="topo">
-      <i class="ph-bold ph-file-arrow-up text-xl"></i>
-      <span class="text-[10px] font-medium mt-0.5">수치지형도</span>
-    </button>
-    <button class="mobile-nav-btn flex flex-col items-center justify-center text-emerald-400 hover:text-emerald-300 px-4 py-1 transition" data-tab="export">
+    <button class="mobile-nav-btn text-emerald-400 hover:text-emerald-300" data-tab="export">
       <i class="ph-bold ph-download-simple text-xl"></i>
-      <span class="text-[10px] font-semibold mt-0.5">CAD추출</span>
+      <span class="text-[10px] font-bold mt-0.5">CAD추출</span>
     </button>
   </nav>
 

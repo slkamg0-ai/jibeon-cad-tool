@@ -32,6 +32,7 @@ from .exporter_geojson import export_geojson
 from .exporter_shp import export_shp_zip
 from .jibeon.processor import process_cadastral, fetch_cadastral_by_coords
 from .clipper import clip_layers_to_border, get_border_polygon
+from .topo_generator import generate_topo_layers_for_parcel
 
 app = FastAPI(title="NGII Map Studio", description="국토정보플랫폼 수치지형도 & VWorld 지적도 통합 CAD 추출기")
 
@@ -82,6 +83,11 @@ class GpsJibeonRequest(BaseModel):
     buffer_meters: float = 100.0
     border_shape: str = "rectangle"
     session_id: Optional[str] = None
+
+class TopoGenerateRequest(BaseModel):
+    session_id: str
+    buffer_meters: Optional[float] = None
+    border_shape: Optional[str] = None
 
 @app.get("/api/crs-list")
 def get_crs_list():
@@ -270,6 +276,10 @@ def fetch_cadastral(req: JibeonRequest):
         raise HTTPException(status_code=400, detail=str(e))
         
     session_id = req.session_id
+    jx = float(jibeon_data["search_result"]["x"])
+    jy = float(jibeon_data["search_result"]["y"])
+    buf = float(req.buffer_meters)
+
     if not session_id or session_id not in SESSIONS:
         # Create standalone cadastral session
         session_id = str(uuid.uuid4())
@@ -278,7 +288,9 @@ def fetch_cadastral(req: JibeonRequest):
             "crs": jibeon_data["crs"],
             "layers": jibeon_data["layers"],
             "bounds_wgs84": jibeon_data["bounds_wgs84"],
-            "bounds_src": [0, 0, 0, 0],
+            "bounds_src": [jx - buf, jy - buf, jx + buf, jy + buf],
+            "center_coords": [jx, jy],
+            "center_wgs84": jibeon_data["center_wgs84"],
             "address": jibeon_data["search_result"]["address"],
             "buffer_meters": req.buffer_meters,
             "border_shape": req.border_shape
@@ -288,6 +300,10 @@ def fetch_cadastral(req: JibeonRequest):
         sess = SESSIONS[session_id]
         sess["layers"].update(jibeon_data["layers"])
         sess["bounds_wgs84"] = jibeon_data["bounds_wgs84"]
+        sess["center_coords"] = [jx, jy]
+        sess["center_wgs84"] = jibeon_data["center_wgs84"]
+        if sess.get("bounds_src") == [0, 0, 0, 0]:
+            sess["bounds_src"] = [jx - buf, jy - buf, jx + buf, jy + buf]
         sess["address"] = jibeon_data["search_result"]["address"]
         sess["buffer_meters"] = req.buffer_meters
         sess["border_shape"] = req.border_shape
@@ -454,6 +470,99 @@ def fetch_by_gps(req: GpsJibeonRequest):
         "bounds_wgs84": [[float(c) for c in b] for b in jibeon_data["bounds_wgs84"]],
         "cadastral_layer_keys": list(jibeon_data["layers"].keys()),
         "layer_summaries": all_summaries
+    }
+
+@app.post("/api/topo/generate-for-current-parcel")
+def generate_topo_for_current_parcel(req: TopoGenerateRequest):
+    """Dynamically generate 3D contour lines and spot elevations centered on current searched parcel."""
+    session = SESSIONS.get(req.session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="세션을 찾을 수 없습니다. 지번이나 주소를 먼저 검색해 주세요.")
+        
+    center = session.get("center_coords")
+    crs = session.get("crs", "EPSG:5186")
+    buf = float(req.buffer_meters or session.get("buffer_meters", 150.0))
+    shape_type = req.border_shape or session.get("border_shape", "rectangle")
+    
+    cx, cy = None, None
+    if center and len(center) == 2 and (center[0] != 0 or center[1] != 0):
+        cx, cy = float(center[0]), float(center[1])
+    else:
+        for k in ("HIGHLIGHT", "CADASTRAL"):
+            feats = session.get("layers", {}).get(k, {}).get("features", [])
+            if feats:
+                all_pts = []
+                for f in feats:
+                    c = f.get("coords", [])
+                    if f.get("type") in ("Polygon", "MultiPolygon"):
+                        from .exporter_dxf import _extract_rings
+                        for ring in _extract_rings(c):
+                            all_pts.extend(ring)
+                    elif f.get("type") in ("LineString", "MultiLineString"):
+                        from .exporter_dxf import _extract_lines
+                        for line in _extract_lines(c):
+                            all_pts.extend(line)
+                    elif f.get("type") == "Point":
+                        all_pts.append(c[0] if isinstance(c[0], (list, tuple)) else c)
+                if all_pts:
+                    cx = sum(p[0] for p in all_pts) / len(all_pts)
+                    cy = sum(p[1] for p in all_pts) / len(all_pts)
+                    break
+                    
+        if cx is None:
+            bw = session.get("bounds_wgs84")
+            if bw and len(bw) == 2:
+                mid_lat = (bw[0][0] + bw[1][0]) / 2.0
+                mid_lon = (bw[0][1] + bw[1][1]) / 2.0
+                pts_src = transform_coords([(mid_lon, mid_lat)], "EPSG:4326", crs)
+                cx, cy = pts_src[0]
+                
+    if cx is None or cy is None:
+        raise HTTPException(status_code=400, detail="유효한 대상지 좌표를 찾을 수 없습니다. 주소를 다시 검색해 주세요.")
+        
+    border_poly = None
+    if "BORDER" in session.get("layers", {}):
+        border_poly = get_border_polygon(session["layers"])
+        
+    topo_layers = generate_topo_layers_for_parcel(
+        cx=cx,
+        cy=cy,
+        buffer_meters=buf,
+        crs=crs,
+        border_shape=shape_type,
+        border_poly=border_poly
+    )
+    
+    session["layers"].update(topo_layers)
+    session["center_coords"] = [cx, cy]
+    session["buffer_meters"] = buf
+    session["border_shape"] = shape_type
+    
+    if session.get("bounds_src") == [0, 0, 0, 0]:
+        session["bounds_src"] = [cx - buf, cy - buf, cx + buf, cy + buf]
+        
+    all_summaries = []
+    for l_key, l_data in session["layers"].items():
+        all_summaries.append({
+            "layer_name": str(l_key),
+            "code": str(l_data.get("code", l_key)),
+            "major": str(l_data.get("major", "기타")),
+            "mid": str(l_data.get("mid", "기타")),
+            "minor": str(l_data.get("minor", l_key)),
+            "geom_type": str(l_data.get("geom_type", "Polygon")),
+            "feature_count": int(len(l_data.get("features", []))),
+            "style": l_data.get("style", {}),
+            "has_elevation": bool(any(f.get("elevation") is not None and abs(f.get("elevation", 0)) > 1e-4 for f in l_data.get("features", [])))
+        })
+        
+    return {
+        "session_id": str(req.session_id),
+        "address": str(session.get("address", "")),
+        "topo_layer_keys": list(topo_layers.keys()),
+        "layer_summaries": all_summaries,
+        "center_coords": [cx, cy],
+        "bounds_wgs84": session.get("bounds_wgs84"),
+        "message": f"'{session.get('address', '검색 지번')}' 위치의 3D 수치지형도(등고선)가 결합되었습니다."
     }
 
 @app.post("/api/preview")

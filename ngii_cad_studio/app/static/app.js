@@ -72,9 +72,10 @@ const btnMobileToggleDrawer = document.getElementById("btn-mobile-toggle-drawer"
 const toggleDrawerIcon = document.getElementById("toggle-drawer-icon");
 const toggleDrawerLabel = document.getElementById("toggle-drawer-label");
 const btnCloseDrawer = document.getElementById("btn-close-drawer");
-const btnGpsJibeon = document.getElementById("btn-gps-jibeon");
-const btnMapGps = document.getElementById("btn-map-gps");
 const mobileBottomNav = document.getElementById("mobile-bottom-nav");
+const mobileQuickAddress = document.getElementById("mobile-quick-address");
+const btnMobileQuickSearch = document.getElementById("btn-mobile-quick-search");
+const btnMobileClearAddr = document.getElementById("btn-mobile-clear-addr");
 
 // Initialize Leaflet Map
 function initMap() {
@@ -674,6 +675,11 @@ async function handleJibeonFetch() {
     currentLayers = data.layer_summaries || [];
 
     // UI Updates
+    if (jibeonAddressInput) jibeonAddressInput.value = data.address;
+    if (mobileQuickAddress) {
+      mobileQuickAddress.value = data.address;
+      if (btnMobileClearAddr) btnMobileClearAddr.classList.remove("hidden");
+    }
     jibeonStatusBadge.textContent = "연동 완료";
     jibeonStatusBadge.className = "text-[11px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
     
@@ -753,6 +759,11 @@ async function handleSyncTopoCadastral() {
     data.cadastral_layer_keys.forEach(k => selectedLayerKeys.add(k));
 
     // Update UI
+    if (jibeonAddressInput) jibeonAddressInput.value = data.address;
+    if (mobileQuickAddress) {
+      mobileQuickAddress.value = data.address;
+      if (btnMobileClearAddr) btnMobileClearAddr.classList.remove("hidden");
+    }
     jibeonStatusBadge.textContent = "도면 위치 연동됨";
     jibeonStatusBadge.className = "text-[11px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
     jibeonInfoCard.classList.remove("hidden");
@@ -1361,12 +1372,46 @@ function setupEvents() {
     btnCloseDrawer.addEventListener("click", () => setMobileDrawer(false));
   }
 
-  if (btnGpsJibeon) {
-    btnGpsJibeon.addEventListener("click", handleGpsFetch);
+  // --- Mobile Floating Address Search Bar ---
+  if (mobileQuickAddress) {
+    mobileQuickAddress.addEventListener("input", (e) => {
+      if (jibeonAddressInput) jibeonAddressInput.value = e.target.value;
+      if (btnMobileClearAddr) {
+        if (e.target.value.trim().length > 0) btnMobileClearAddr.classList.remove("hidden");
+        else btnMobileClearAddr.classList.add("hidden");
+      }
+    });
+    mobileQuickAddress.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        handleJibeonFetch();
+      }
+    });
   }
 
-  if (btnMapGps) {
-    btnMapGps.addEventListener("click", handleGpsFetch);
+  if (jibeonAddressInput && mobileQuickAddress) {
+    jibeonAddressInput.addEventListener("input", (e) => {
+      mobileQuickAddress.value = e.target.value;
+      if (btnMobileClearAddr) {
+        if (e.target.value.trim().length > 0) btnMobileClearAddr.classList.remove("hidden");
+        else btnMobileClearAddr.classList.add("hidden");
+      }
+    });
+  }
+
+  if (btnMobileQuickSearch) {
+    btnMobileQuickSearch.addEventListener("click", () => {
+      handleJibeonFetch();
+    });
+  }
+
+  if (btnMobileClearAddr) {
+    btnMobileClearAddr.addEventListener("click", () => {
+      if (mobileQuickAddress) mobileQuickAddress.value = "";
+      if (jibeonAddressInput) jibeonAddressInput.value = "";
+      btnMobileClearAddr.classList.add("hidden");
+      if (mobileQuickAddress) mobileQuickAddress.focus();
+    });
   }
 
   // Mobile Bottom Navigation Bar Tabs
@@ -1374,24 +1419,30 @@ function setupEvents() {
     btn.addEventListener("click", () => {
       const tab = btn.getAttribute("data-tab");
       document.querySelectorAll(".mobile-nav-btn").forEach(b => {
-        b.classList.remove("active", "text-indigo-400");
-        if (b.getAttribute("data-tab") !== "export" && b.getAttribute("data-tab") !== "gps") {
-          b.classList.add("text-slate-400");
-        }
+        b.classList.remove("active", "text-rose-400", "text-emerald-400", "text-indigo-400");
+        b.classList.add("text-slate-400");
       });
-      btn.classList.add("active", "text-indigo-400");
-      btn.classList.remove("text-slate-400");
-
-      if (tab === "map") {
+      
+      if (tab === "jibeon") {
+        btn.classList.add("active", "text-rose-400");
+        btn.classList.remove("text-slate-400");
         setMobileDrawer(false);
-      } else if (tab === "jibeon") {
-        scrollToSection("section-jibeon");
+        if (mobileQuickAddress) {
+          mobileQuickAddress.focus();
+          mobileQuickAddress.select();
+        }
+      } else if (tab === "map") {
+        btn.classList.add("active", "text-indigo-400");
+        btn.classList.remove("text-slate-400");
+        setMobileDrawer(false);
       } else if (tab === "topo") {
+        btn.classList.add("active", "text-indigo-400");
+        btn.classList.remove("text-slate-400");
         scrollToSection("section-topo");
       } else if (tab === "export") {
+        btn.classList.add("active", "text-emerald-400");
+        btn.classList.remove("text-slate-400");
         scrollToSection("section-export");
-      } else if (tab === "gps") {
-        handleGpsFetch();
       }
     });
   });

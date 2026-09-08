@@ -87,12 +87,7 @@
           <div class="space-y-2">
             <div class="flex gap-1.5">
               <input type="text" id="jibeon-address-input" placeholder="지번 또는 도로명 (예: 고덕동 2728, 역삼동 737)" class="flex-1 px-3 py-2 md:py-1.5 bg-slate-900 border border-slate-650 rounded-lg text-sm md:text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-rose-400" />
-              <!-- GPS Button -->
-              <button id="btn-gps-jibeon" title="현재 스마트폰 GPS 위치로 지적도 자동 호출" class="px-2.5 py-1.5 bg-slate-700 hover:bg-rose-600 text-rose-300 hover:text-white rounded-lg text-xs font-semibold flex items-center gap-1 transition shrink-0 border border-slate-650 shadow-sm">
-                <i class="ph-bold ph-crosshair text-sm"></i>
-                <span class="hidden sm:inline">GPS</span>
-              </button>
-              <button id="btn-fetch-jibeon" class="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-lg transition shrink-0 flex items-center gap-1 shadow-sm shadow-rose-600/30">
+              <button id="btn-fetch-jibeon" class="px-4 py-2 md:py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-lg transition shrink-0 flex items-center gap-1 shadow-sm shadow-rose-600/30">
                 <i class="ph-bold ph-magnifying-glass"></i>
                 <span>지적도 호출</span>
               </button>
@@ -363,8 +358,21 @@
     <!-- Right Area: Interactive Map Viewer -->
     <main class="flex-1 relative flex flex-col bg-slate-950">
       
+      <!-- Mobile Floating Quick Address Search Bar (Visible on mobile < 768px) -->
+      <div class="md:hidden absolute top-2.5 left-2.5 right-2.5 z-[1000] flex items-center gap-1.5 shadow-2xl">
+        <div class="flex-1 flex items-center bg-slate-900/95 backdrop-blur-md border border-rose-500/70 rounded-xl px-3 py-2 shadow-lg">
+          <i class="ph-bold ph-magnifying-glass text-rose-400 text-base mr-2 shrink-0"></i>
+          <input type="text" id="mobile-quick-address" placeholder="지번 또는 도로명 검색 (예: 고덕동 2728)" class="w-full bg-transparent text-sm text-white placeholder-slate-400 focus:outline-none" />
+          <button id="btn-mobile-clear-addr" class="hidden text-slate-400 hover:text-white p-0.5"><i class="ph-bold ph-x-circle text-base"></i></button>
+        </div>
+        <button id="btn-mobile-quick-search" class="px-4 py-2 bg-rose-600 hover:bg-rose-500 active:scale-95 text-white font-bold text-xs rounded-xl shadow-lg flex items-center gap-1 shrink-0 transition">
+          <i class="ph-bold ph-magnifying-glass"></i>
+          <span>호출</span>
+        </button>
+      </div>
+
       <!-- Floating Map Toolbar -->
-      <div class="absolute top-2 left-2 right-2 md:right-auto md:top-4 md:left-4 z-[1000] flex items-center justify-between md:justify-start gap-1.5 md:gap-2 bg-slate-850/95 backdrop-blur px-2.5 md:px-3 py-1.5 rounded-xl border border-slate-700 shadow-lg">
+      <div class="absolute top-14 left-2.5 right-2.5 md:top-4 md:left-4 md:right-auto md:w-auto z-[990] flex items-center justify-between md:justify-start gap-1.5 md:gap-2 bg-slate-850/95 backdrop-blur px-2.5 md:px-3 py-1.5 rounded-xl border border-slate-700 shadow-lg">
         <div class="flex items-center gap-1.5">
           <span class="text-xs font-semibold text-slate-300 flex items-center gap-1">
             <i class="ph-bold ph-map-pin text-rose-400"></i>
@@ -376,14 +384,7 @@
         </div>
 
         <div class="flex items-center gap-1.5">
-          <!-- Quick GPS button on map toolbar -->
-          <button id="btn-map-gps" title="내 위치(스마트폰 GPS)로 지적도 호출" class="px-2 py-1 rounded bg-rose-600 hover:bg-rose-500 text-white flex items-center gap-1 text-xs font-bold shadow transition shrink-0">
-            <i class="ph-bold ph-crosshair"></i>
-            <span>내 위치</span>
-          </button>
-          
-          <div class="h-4 w-px bg-slate-650"></div>
-
+          <span class="text-[11px] text-slate-400 hidden xs:inline">배경:</span>
           <!-- Base Map Selector -->
           <select id="base-layer-select" class="bg-slate-900 border border-slate-650 text-slate-200 text-xs rounded px-1.5 py-1 focus:outline-none max-w-[130px] md:max-w-none">
             <option value="vworld_sat" selected>VWorld 위성</option>
@@ -395,7 +396,7 @@
       </div>
 
       <!-- Elevation Range & Stats Floating Pill -->
-      <div id="elevation-stats-pill" class="hidden absolute bottom-16 md:bottom-4 left-3 md:left-4 z-[1000] bg-slate-850/95 backdrop-blur px-3 py-1.5 rounded-xl border border-slate-700 text-xs text-slate-300 shadow-lg flex items-center gap-3">
+      <div id="elevation-stats-pill" class="hidden absolute bottom-16 md:bottom-4 left-3 md:left-4 z-[990] bg-slate-850/95 backdrop-blur px-3 py-1.5 rounded-xl border border-slate-700 text-xs text-slate-300 shadow-lg flex items-center gap-3">
         <div class="flex items-center gap-1.5">
           <i class="ph-bold ph-chart-line-up text-amber-400"></i>
           <span>표고:</span>
@@ -423,25 +424,21 @@
 
   <!-- Mobile Bottom Navigation Bar (Visible only on mobile screens < 768px) -->
   <nav id="mobile-bottom-nav" class="md:hidden fixed bottom-0 inset-x-0 h-14 bg-slate-900/95 backdrop-blur border-t border-slate-750 flex items-center justify-around z-40 pb-safe">
-    <button class="mobile-nav-btn active flex flex-col items-center justify-center text-indigo-400 px-3 py-1 transition" data-tab="map">
-      <i class="ph-bold ph-map-trifold text-lg"></i>
-      <span class="text-[10px] font-semibold mt-0.5">지도</span>
+    <button class="mobile-nav-btn active flex flex-col items-center justify-center text-rose-400 px-4 py-1 transition" data-tab="jibeon">
+      <i class="ph-bold ph-magnifying-glass text-xl"></i>
+      <span class="text-[10px] font-bold mt-0.5">주소검색</span>
     </button>
-    <button class="mobile-nav-btn flex flex-col items-center justify-center text-slate-400 hover:text-slate-200 px-3 py-1 transition" data-tab="jibeon">
-      <i class="ph-bold ph-magnifying-glass text-lg"></i>
-      <span class="text-[10px] font-medium mt-0.5">지적검색</span>
+    <button class="mobile-nav-btn flex flex-col items-center justify-center text-slate-400 hover:text-slate-200 px-4 py-1 transition" data-tab="map">
+      <i class="ph-bold ph-map-trifold text-xl"></i>
+      <span class="text-[10px] font-medium mt-0.5">전체지도</span>
     </button>
-    <button class="mobile-nav-btn flex flex-col items-center justify-center text-slate-400 hover:text-slate-200 px-3 py-1 transition" data-tab="topo">
-      <i class="ph-bold ph-file-arrow-up text-lg"></i>
-      <span class="text-[10px] font-medium mt-0.5">지형도</span>
+    <button class="mobile-nav-btn flex flex-col items-center justify-center text-slate-400 hover:text-slate-200 px-4 py-1 transition" data-tab="topo">
+      <i class="ph-bold ph-file-arrow-up text-xl"></i>
+      <span class="text-[10px] font-medium mt-0.5">수치지형도</span>
     </button>
-    <button class="mobile-nav-btn flex flex-col items-center justify-center text-emerald-400 hover:text-emerald-300 px-3 py-1 transition" data-tab="export">
-      <i class="ph-bold ph-download-simple text-lg"></i>
+    <button class="mobile-nav-btn flex flex-col items-center justify-center text-emerald-400 hover:text-emerald-300 px-4 py-1 transition" data-tab="export">
+      <i class="ph-bold ph-download-simple text-xl"></i>
       <span class="text-[10px] font-semibold mt-0.5">CAD추출</span>
-    </button>
-    <button class="mobile-nav-btn flex flex-col items-center justify-center text-rose-400 hover:text-rose-300 px-3 py-1 transition" data-tab="gps">
-      <i class="ph-bold ph-crosshair text-lg"></i>
-      <span class="text-[10px] font-bold mt-0.5">내위치</span>
     </button>
   </nav>
 

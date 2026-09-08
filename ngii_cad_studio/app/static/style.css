@@ -111,7 +111,7 @@ button:active, .preset-btn:active {
 /* 5. Mobile Leaflet zoom control tweak */
 @media (max-width: 767px) {
   .leaflet-top.leaflet-left {
-    top: 54px;
+    top: 104px;
     left: 8px;
   }
   .leaflet-control-zoom {

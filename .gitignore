@@ -19,3 +19,8 @@ jibeon_cad_tool/output*/
 *.dxf
 *.geojson
 *.lnk
+
+# cloudflared tunnel
+cloudflared.exe
+tunnel.log
+tunnel_url.txt

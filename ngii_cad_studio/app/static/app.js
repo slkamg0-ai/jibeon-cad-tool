@@ -66,6 +66,16 @@ const elevationStatsPill = document.getElementById("elevation-stats-pill");
 const statElevRange = document.getElementById("stat-elev-range");
 const statVisibleFeatures = document.getElementById("stat-visible-features");
 
+// Mobile UI Elements
+const sidebarPanel = document.getElementById("sidebar-panel");
+const btnMobileToggleDrawer = document.getElementById("btn-mobile-toggle-drawer");
+const toggleDrawerIcon = document.getElementById("toggle-drawer-icon");
+const toggleDrawerLabel = document.getElementById("toggle-drawer-label");
+const btnCloseDrawer = document.getElementById("btn-close-drawer");
+const btnGpsJibeon = document.getElementById("btn-gps-jibeon");
+const btnMapGps = document.getElementById("btn-map-gps");
+const mobileBottomNav = document.getElementById("mobile-bottom-nav");
+
 // Initialize Leaflet Map
 function initMap() {
   map = L.map('map', {
@@ -698,6 +708,7 @@ async function handleJibeonFetch() {
     }
 
     triggerPreviewUpdate();
+    if (window.innerWidth < 768) setMobileDrawer(false);
 
   } catch (err) {
     alert("지적도 검색 오류: " + err.message);
@@ -759,6 +770,7 @@ async function handleSyncTopoCadastral() {
 
     renderLayerTree();
     triggerPreviewUpdate();
+    if (window.innerWidth < 768) setMobileDrawer(false);
 
   } catch (err) {
     alert("지적도 자동 결합 오류: " + err.message);
@@ -1088,6 +1100,126 @@ async function exportCustomMap() {
   }
 }
 
+// --- Mobile Drawer & Navigation Management ---
+function setMobileDrawer(isOpen) {
+  if (!sidebarPanel) return;
+  if (isOpen) {
+    sidebarPanel.classList.remove("drawer-closed");
+    sidebarPanel.classList.add("drawer-open");
+    if (toggleDrawerIcon) toggleDrawerIcon.className = "ph-bold ph-x";
+    if (toggleDrawerLabel) toggleDrawerLabel.textContent = "지도";
+  } else {
+    sidebarPanel.classList.remove("drawer-open");
+    sidebarPanel.classList.add("drawer-closed");
+    if (toggleDrawerIcon) toggleDrawerIcon.className = "ph-bold ph-sliders";
+    if (toggleDrawerLabel) toggleDrawerLabel.textContent = "제어판";
+    document.querySelectorAll(".mobile-nav-btn").forEach(b => {
+      if (b.getAttribute("data-tab") === "map") {
+        b.classList.add("active", "text-indigo-400");
+        b.classList.remove("text-slate-400");
+      } else {
+        b.classList.remove("active", "text-indigo-400");
+        if (b.getAttribute("data-tab") !== "export" && b.getAttribute("data-tab") !== "gps") {
+          b.classList.add("text-slate-400");
+        }
+      }
+    });
+    setTimeout(() => { if (map) map.invalidateSize(); }, 320);
+  }
+}
+
+function scrollToSection(sectionId) {
+  setMobileDrawer(true);
+  setTimeout(() => {
+    const el = document.getElementById(sectionId);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, 120);
+}
+
+// GPS Fetch Handler (Smartphone field location)
+async function handleGpsFetch() {
+  if (!navigator.geolocation) {
+    alert("이 기기 또는 브라우저에서 GPS 위치 서비스를 지원하지 않습니다.");
+    return;
+  }
+
+  showLoading("스마트폰 현장 GPS 위치 수신 중...");
+
+  navigator.geolocation.getCurrentPosition(
+    async (pos) => {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      showLoading(`현장 좌표 수신 완료 (${lat.toFixed(5)}, ${lng.toFixed(5)}). 지적도 호출 중...`);
+
+      try {
+        const res = await fetch("/api/jibeon/fetch-by-gps", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            latitude: lat,
+            longitude: lng,
+            buffer_meters: getBufferMeters(),
+            border_shape: jibeonShapeSelect ? (jibeonShapeSelect.value || "rectangle") : "rectangle",
+            session_id: currentSessionId
+          })
+        });
+
+        if (!res.ok) {
+          const errMsg = await parseResponseError(res, "GPS 위치 지적도 호출 실패");
+          throw new Error(errMsg);
+        }
+
+        const data = await res.json();
+        currentSessionId = data.session_id;
+        currentLayers = data.layer_summaries || [];
+
+        // UI Updates
+        if (jibeonAddressInput) jibeonAddressInput.value = data.address;
+        if (jibeonStatusBadge) {
+          jibeonStatusBadge.textContent = "현장 GPS 연동됨";
+          jibeonStatusBadge.className = "text-[11px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+        }
+        if (jibeonInfoCard) jibeonInfoCard.classList.remove("hidden");
+        if (jibeonTargetName) jibeonTargetName.textContent = `${data.address} (${data.target_label})`;
+        if (jibeonPnuText) jibeonPnuText.textContent = `PNU: ${data.target_pnu}`;
+        if (jibeonAreaText) {
+          if (data.target_area_m2 && data.target_area_m2 > 0) {
+            jibeonAreaText.textContent = `${data.target_area_m2.toLocaleString()} ㎡ (${data.target_area_pyung.toLocaleString()}평)`;
+          } else {
+            jibeonAreaText.textContent = "-";
+          }
+        }
+
+        data.cadastral_layer_keys.forEach(k => selectedLayerKeys.add(k));
+        renderLayerTree();
+
+        if (data.bounds_wgs84 && data.bounds_wgs84.length === 2) {
+          map.fitBounds(data.bounds_wgs84, { padding: [40, 40] });
+        }
+
+        triggerPreviewUpdate();
+
+        // On mobile, close drawer to view map right away
+        setMobileDrawer(false);
+
+      } catch (err) {
+        alert("GPS 지적도 호출 오류: " + err.message);
+      } finally {
+        hideLoading();
+      }
+    },
+    (err) => {
+      hideLoading();
+      let msg = "위치 수신에 실패했습니다.";
+      if (err.code === 1) msg = "위치 정보 접근 권한이 차단되었습니다. 브라우저 설정에서 위치 권한을 허용해주세요.";
+      else if (err.code === 2) msg = "GPS 신호를 수신할 수 없습니다.";
+      else if (err.code === 3) msg = "위치 수신 시간이 초과되었습니다.";
+      alert(msg);
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+  );
+}
+
 function setupEvents() {
   // Jibeon Search
   btnFetchJibeon.addEventListener("click", handleJibeonFetch);
@@ -1212,7 +1344,57 @@ function setupEvents() {
   });
 
   btnExportMap.addEventListener("click", exportCustomMap);
-  btnLoadSample.addEventListener("click", loadSampleData);
+  btnLoadSample.addEventListener("click", async () => {
+    await loadSampleData();
+    if (window.innerWidth < 768) setMobileDrawer(false);
+  });
+
+  // --- Mobile Specific Event Listeners ---
+  if (btnMobileToggleDrawer) {
+    btnMobileToggleDrawer.addEventListener("click", () => {
+      const isClosed = sidebarPanel && sidebarPanel.classList.contains("drawer-closed");
+      setMobileDrawer(isClosed);
+    });
+  }
+
+  if (btnCloseDrawer) {
+    btnCloseDrawer.addEventListener("click", () => setMobileDrawer(false));
+  }
+
+  if (btnGpsJibeon) {
+    btnGpsJibeon.addEventListener("click", handleGpsFetch);
+  }
+
+  if (btnMapGps) {
+    btnMapGps.addEventListener("click", handleGpsFetch);
+  }
+
+  // Mobile Bottom Navigation Bar Tabs
+  document.querySelectorAll(".mobile-nav-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const tab = btn.getAttribute("data-tab");
+      document.querySelectorAll(".mobile-nav-btn").forEach(b => {
+        b.classList.remove("active", "text-indigo-400");
+        if (b.getAttribute("data-tab") !== "export" && b.getAttribute("data-tab") !== "gps") {
+          b.classList.add("text-slate-400");
+        }
+      });
+      btn.classList.add("active", "text-indigo-400");
+      btn.classList.remove("text-slate-400");
+
+      if (tab === "map") {
+        setMobileDrawer(false);
+      } else if (tab === "jibeon") {
+        scrollToSection("section-jibeon");
+      } else if (tab === "topo") {
+        scrollToSection("section-topo");
+      } else if (tab === "export") {
+        scrollToSection("section-export");
+      } else if (tab === "gps") {
+        handleGpsFetch();
+      }
+    });
+  });
 }
 
 async function fetchPresets() {

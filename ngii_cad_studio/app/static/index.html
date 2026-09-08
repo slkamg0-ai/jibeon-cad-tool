@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>NGII Map Studio - 통합 현황지적지형도 CAD 추출기</title>
   
   <link rel="icon" type="image/png" href="app_icon.png" />
@@ -20,43 +20,60 @@
 <body class="bg-slate-900 text-slate-100 flex flex-col h-screen overflow-hidden font-sans">
 
   <!-- Header -->
-  <header class="bg-slate-800/90 border-b border-slate-700 px-5 py-3 flex items-center justify-between shrink-0 z-20 backdrop-blur">
-    <div class="flex items-center space-x-3">
-      <img src="app_icon.png" alt="NGII CAD Studio Logo" class="w-9 h-9 rounded-lg shadow-md border border-sky-400/30 object-contain bg-slate-900">
+  <header class="bg-slate-800/95 border-b border-slate-700 px-3 md:px-5 py-2 md:py-3 flex items-center justify-between shrink-0 z-20 backdrop-blur h-14">
+    <div class="flex items-center space-x-2.5">
+      <img src="app_icon.png" alt="NGII CAD Studio Logo" class="w-8 h-8 md:w-9 md:h-9 rounded-lg shadow-md border border-sky-400/30 object-contain bg-slate-900 shrink-0">
       <div>
-        <h1 class="text-base font-bold text-white flex items-center gap-2">
-          NGII Map Studio
-          <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30">
-            VWorld 지적도 + 3D 수치지형도 통합 CAD
+        <h1 class="text-sm md:text-base font-bold text-white flex items-center gap-1.5 leading-none">
+          NGII Studio
+          <span class="text-[10px] md:text-xs font-semibold px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30">
+            CAD
           </span>
         </h1>
-        <p class="text-xs text-slate-400">지번 검색 지적선·라벨 + 국토정보플랫폼 3D 등고선·건물·도로 원클릭 결합</p>
+        <p class="hidden sm:block text-[11px] text-slate-400 mt-0.5">VWorld 지적도 + 3D 수치지형도 원클릭 결합</p>
       </div>
     </div>
 
-    <div class="flex items-center space-x-3">
-      <button id="btn-load-sample" class="px-3.5 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition border border-slate-600 shadow-sm">
+    <div class="flex items-center space-x-2">
+      <button id="btn-load-sample" class="px-2.5 md:px-3.5 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-semibold flex items-center gap-1 transition border border-slate-600 shadow-sm">
         <i class="ph-bold ph-sparkle text-amber-400"></i>
-        <span>샘플 지형도 즉시 체험</span>
+        <span class="hidden xs:inline">샘플 지형도</span>
       </button>
-      <a href="https://map.ngii.go.kr" target="_blank" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs flex items-center gap-1 border border-slate-700 transition">
+      <a href="https://map.ngii.go.kr" target="_blank" class="hidden md:flex px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs items-center gap-1 border border-slate-700 transition">
         <span>국토정보플랫폼</span>
         <i class="ph ph-arrow-square-out text-slate-400"></i>
       </a>
+      <!-- Mobile Drawer Toggle Button -->
+      <button id="btn-mobile-toggle-drawer" class="md:hidden px-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-1 shadow-sm transition">
+        <i id="toggle-drawer-icon" class="ph-bold ph-sliders"></i>
+        <span id="toggle-drawer-label">제어판</span>
+      </button>
     </div>
   </header>
 
   <!-- Main Content Layout -->
   <div class="flex flex-1 overflow-hidden relative">
 
-    <!-- Left Sidebar: Controls & Layer Tree -->
-    <aside class="w-[450px] bg-slate-850 border-r border-slate-750 flex flex-col shrink-0 h-full overflow-hidden z-10 shadow-xl">
+    <!-- Left Sidebar / Mobile Bottom Sheet Drawer -->
+    <aside id="sidebar-panel" class="fixed inset-x-0 bottom-14 top-14 md:static md:w-[450px] md:h-full bg-slate-850 md:border-r border-slate-750 flex flex-col shrink-0 overflow-hidden z-30 shadow-2xl drawer-closed md:drawer-open">
       
+      <!-- Mobile Drawer Top Bar (Close / Drag Handle) -->
+      <div class="md:hidden flex items-center justify-between px-4 py-2 border-b border-slate-750 bg-slate-800 shrink-0">
+        <div class="flex items-center gap-1.5 text-xs font-bold text-slate-200">
+          <i class="ph-bold ph-sliders text-indigo-400"></i>
+          <span>설정 및 레이어 제어</span>
+        </div>
+        <button id="btn-close-drawer" class="px-2.5 py-1 rounded-md bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs font-semibold flex items-center gap-1 shadow-sm transition">
+          <i class="ph-bold ph-x"></i>
+          <span>지도 보기</span>
+        </button>
+      </div>
+
       <!-- Scrollable Control Area -->
-      <div class="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4">
+      <div id="sidebar-scroll-area" class="flex-1 overflow-y-auto custom-scrollbar p-3 md:p-4 space-y-3 md:space-y-4">
         
         <!-- 1. Real-time Jibeon / Cadastral Search (from jibeon-cad-tool) -->
-        <div class="bg-slate-800/90 rounded-xl border border-rose-900/40 p-3.5 space-y-2.5 shadow-sm">
+        <div id="section-jibeon" class="bg-slate-800/90 rounded-xl border border-rose-900/40 p-3 md:p-3.5 space-y-2.5 shadow-sm">
           <div class="flex items-center justify-between">
             <span class="text-xs font-bold text-rose-300 uppercase tracking-wider flex items-center gap-1.5">
               <i class="ph-bold ph-map-pin text-rose-400"></i>
@@ -69,7 +86,12 @@
 
           <div class="space-y-2">
             <div class="flex gap-1.5">
-              <input type="text" id="jibeon-address-input" placeholder="지번 또는 도로명 (예: 고덕동 2728, 역삼동 737)" class="flex-1 px-3 py-1.5 bg-slate-900 border border-slate-650 rounded-lg text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-rose-400" />
+              <input type="text" id="jibeon-address-input" placeholder="지번 또는 도로명 (예: 고덕동 2728, 역삼동 737)" class="flex-1 px-3 py-2 md:py-1.5 bg-slate-900 border border-slate-650 rounded-lg text-sm md:text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-rose-400" />
+              <!-- GPS Button -->
+              <button id="btn-gps-jibeon" title="현재 스마트폰 GPS 위치로 지적도 자동 호출" class="px-2.5 py-1.5 bg-slate-700 hover:bg-rose-600 text-rose-300 hover:text-white rounded-lg text-xs font-semibold flex items-center gap-1 transition shrink-0 border border-slate-650 shadow-sm">
+                <i class="ph-bold ph-crosshair text-sm"></i>
+                <span class="hidden sm:inline">GPS</span>
+              </button>
               <button id="btn-fetch-jibeon" class="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-lg transition shrink-0 flex items-center gap-1 shadow-sm shadow-rose-600/30">
                 <i class="ph-bold ph-magnifying-glass"></i>
                 <span>지적도 호출</span>
@@ -134,7 +156,7 @@
         </div>
 
         <!-- 2. File Upload Dropzone (Topographic map) -->
-        <div class="bg-slate-800/80 rounded-xl border border-slate-700 p-3.5 space-y-3 shadow-sm">
+        <div id="section-topo" class="bg-slate-800/80 rounded-xl border border-slate-700 p-3.5 space-y-3 shadow-sm">
           <div class="flex items-center justify-between">
             <span class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
               <i class="ph-bold ph-upload-simple text-indigo-400"></i>
@@ -282,7 +304,7 @@
       </div>
 
       <!-- Bottom Sticky Export Bar -->
-      <div class="border-t border-slate-700 bg-slate-800 p-4 space-y-3 shrink-0 shadow-lg">
+      <div id="section-export" class="border-t border-slate-700 bg-slate-800 p-3 md:p-4 space-y-2.5 md:space-y-3 shrink-0 shadow-lg pb-safe">
         <div class="flex items-center justify-between text-xs">
           <span class="text-slate-300 font-medium">내보내기 좌표계:</span>
           <select id="export-crs-select" class="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-indigo-400">
@@ -342,37 +364,46 @@
     <main class="flex-1 relative flex flex-col bg-slate-950">
       
       <!-- Floating Map Toolbar -->
-      <div class="absolute top-4 left-4 z-[1000] flex items-center gap-2 bg-slate-800/90 backdrop-blur px-3 py-1.5 rounded-xl border border-slate-700 shadow-lg">
-        <span class="text-xs font-semibold text-slate-300 flex items-center gap-1.5 mr-2">
-          <i class="ph-bold ph-map-pin text-rose-400"></i>
-          통합 지적·지형도 미리보기
-        </span>
-        <button id="btn-fit-bounds" title="전체 영역 맞춤" class="w-7 h-7 rounded bg-slate-700 hover:bg-slate-600 text-slate-200 flex items-center justify-center text-sm transition">
-          <i class="ph-bold ph-corners-out"></i>
-        </button>
-        <div class="h-4 w-px bg-slate-650"></div>
-        <!-- Base Map Selector -->
-        <div class="flex items-center gap-1 text-xs">
-          <span class="text-slate-400">배경:</span>
-          <select id="base-layer-select" class="bg-slate-900 border border-slate-650 text-slate-200 text-xs rounded px-2 py-0.5 focus:outline-none">
-            <option value="vworld_sat" selected>국토정보 VWorld (위성영상)</option>
-            <option value="vworld_base">국토정보 VWorld (일반지도)</option>
+      <div class="absolute top-2 left-2 right-2 md:right-auto md:top-4 md:left-4 z-[1000] flex items-center justify-between md:justify-start gap-1.5 md:gap-2 bg-slate-850/95 backdrop-blur px-2.5 md:px-3 py-1.5 rounded-xl border border-slate-700 shadow-lg">
+        <div class="flex items-center gap-1.5">
+          <span class="text-xs font-semibold text-slate-300 flex items-center gap-1">
+            <i class="ph-bold ph-map-pin text-rose-400"></i>
+            <span class="hidden sm:inline">통합 미리보기</span>
+          </span>
+          <button id="btn-fit-bounds" title="전체 영역 맞춤" class="w-7 h-7 rounded bg-slate-750 hover:bg-slate-650 text-slate-200 flex items-center justify-center text-xs transition border border-slate-650">
+            <i class="ph-bold ph-corners-out"></i>
+          </button>
+        </div>
+
+        <div class="flex items-center gap-1.5">
+          <!-- Quick GPS button on map toolbar -->
+          <button id="btn-map-gps" title="내 위치(스마트폰 GPS)로 지적도 호출" class="px-2 py-1 rounded bg-rose-600 hover:bg-rose-500 text-white flex items-center gap-1 text-xs font-bold shadow transition shrink-0">
+            <i class="ph-bold ph-crosshair"></i>
+            <span>내 위치</span>
+          </button>
+          
+          <div class="h-4 w-px bg-slate-650"></div>
+
+          <!-- Base Map Selector -->
+          <select id="base-layer-select" class="bg-slate-900 border border-slate-650 text-slate-200 text-xs rounded px-1.5 py-1 focus:outline-none max-w-[130px] md:max-w-none">
+            <option value="vworld_sat" selected>VWorld 위성</option>
+            <option value="vworld_base">VWorld 일반</option>
             <option value="osm">OpenStreetMap</option>
-            <option value="carto_dark">다크 모드 도면 (Carto)</option>
+            <option value="carto_dark">다크 도면</option>
           </select>
         </div>
       </div>
 
       <!-- Elevation Range & Stats Floating Pill -->
-      <div id="elevation-stats-pill" class="hidden absolute bottom-4 left-4 z-[1000] bg-slate-800/90 backdrop-blur px-3.5 py-2 rounded-xl border border-slate-700 text-xs text-slate-300 shadow-lg flex items-center gap-4">
+      <div id="elevation-stats-pill" class="hidden absolute bottom-16 md:bottom-4 left-3 md:left-4 z-[1000] bg-slate-850/95 backdrop-blur px-3 py-1.5 rounded-xl border border-slate-700 text-xs text-slate-300 shadow-lg flex items-center gap-3">
         <div class="flex items-center gap-1.5">
           <i class="ph-bold ph-chart-line-up text-amber-400"></i>
-          <span>표고 범위:</span>
+          <span>표고:</span>
           <span id="stat-elev-range" class="font-bold text-amber-400">-</span>
         </div>
         <div class="flex items-center gap-1.5">
           <i class="ph-bold ph-shapes text-indigo-400"></i>
-          <span>화면 객체수:</span>
+          <span>객체:</span>
           <span id="stat-visible-features" class="font-bold text-white">-</span>
         </div>
       </div>
@@ -389,6 +420,30 @@
     </main>
 
   </div>
+
+  <!-- Mobile Bottom Navigation Bar (Visible only on mobile screens < 768px) -->
+  <nav id="mobile-bottom-nav" class="md:hidden fixed bottom-0 inset-x-0 h-14 bg-slate-900/95 backdrop-blur border-t border-slate-750 flex items-center justify-around z-40 pb-safe">
+    <button class="mobile-nav-btn active flex flex-col items-center justify-center text-indigo-400 px-3 py-1 transition" data-tab="map">
+      <i class="ph-bold ph-map-trifold text-lg"></i>
+      <span class="text-[10px] font-semibold mt-0.5">지도</span>
+    </button>
+    <button class="mobile-nav-btn flex flex-col items-center justify-center text-slate-400 hover:text-slate-200 px-3 py-1 transition" data-tab="jibeon">
+      <i class="ph-bold ph-magnifying-glass text-lg"></i>
+      <span class="text-[10px] font-medium mt-0.5">지적검색</span>
+    </button>
+    <button class="mobile-nav-btn flex flex-col items-center justify-center text-slate-400 hover:text-slate-200 px-3 py-1 transition" data-tab="topo">
+      <i class="ph-bold ph-file-arrow-up text-lg"></i>
+      <span class="text-[10px] font-medium mt-0.5">지형도</span>
+    </button>
+    <button class="mobile-nav-btn flex flex-col items-center justify-center text-emerald-400 hover:text-emerald-300 px-3 py-1 transition" data-tab="export">
+      <i class="ph-bold ph-download-simple text-lg"></i>
+      <span class="text-[10px] font-semibold mt-0.5">CAD추출</span>
+    </button>
+    <button class="mobile-nav-btn flex flex-col items-center justify-center text-rose-400 hover:text-rose-300 px-3 py-1 transition" data-tab="gps">
+      <i class="ph-bold ph-crosshair text-lg"></i>
+      <span class="text-[10px] font-bold mt-0.5">내위치</span>
+    </button>
+  </nav>
 
   <script src="app.js"></script>
 </body>

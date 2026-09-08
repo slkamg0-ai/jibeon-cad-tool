@@ -76,6 +76,13 @@ class MapCenterJibeonRequest(BaseModel):
     buffer_meters: float = 200.0
     border_shape: str = "rectangle"
 
+class GpsJibeonRequest(BaseModel):
+    latitude: float
+    longitude: float
+    buffer_meters: float = 100.0
+    border_shape: str = "rectangle"
+    session_id: Optional[str] = None
+
 @app.get("/api/crs-list")
 def get_crs_list():
     return SUPPORTED_CRS
@@ -378,6 +385,66 @@ def fetch_by_map_center(req: MapCenterJibeonRequest):
         
     return {
         "session_id": str(req.session_id),
+        "address": str(jibeon_data["search_result"]["address"]),
+        "target_pnu": str(jibeon_data["target_pnu"]),
+        "target_label": str(jibeon_data["target_label"]),
+        "target_area_m2": float(jibeon_data.get("target_area_m2", 0.0)),
+        "target_area_pyung": float(jibeon_data.get("target_area_pyung", 0.0)),
+        "center_wgs84": [float(c) for c in jibeon_data["center_wgs84"]],
+        "bounds_wgs84": [[float(c) for c in b] for b in jibeon_data["bounds_wgs84"]],
+        "cadastral_layer_keys": list(jibeon_data["layers"].keys()),
+        "layer_summaries": all_summaries
+    }
+
+@app.post("/api/jibeon/fetch-by-gps")
+def fetch_by_gps(req: GpsJibeonRequest):
+    """Fetch cadastral parcels directly from smartphone/field GPS coordinates."""
+    coords_5186 = transform_coords([(req.longitude, req.latitude)], "EPSG:4326", "EPSG:5186")
+    cx, cy = coords_5186[0]
+    
+    try:
+        jibeon_data = fetch_cadastral_by_coords(
+            center_x=cx,
+            center_y=cy,
+            buffer_meters=req.buffer_meters,
+            border_shape=req.border_shape,
+            crs="EPSG:5186"
+        )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"현장 GPS 위치 지적도 수집 실패: {e}")
+        
+    session_id = req.session_id or str(uuid.uuid4())
+    if session_id not in SESSIONS:
+        SESSIONS[session_id] = {
+            "file_name": "GPS_현장도면",
+            "crs": "EPSG:5186",
+            "layers": {},
+            "bounds_wgs84": jibeon_data["bounds_wgs84"],
+            "bounds_src": [cx - req.buffer_meters, cy - req.buffer_meters, cx + req.buffer_meters, cy + req.buffer_meters]
+        }
+        
+    session = SESSIONS[session_id]
+    session["layers"].update(jibeon_data["layers"])
+    session["address"] = jibeon_data["search_result"]["address"]
+    session["buffer_meters"] = req.buffer_meters
+    session["border_shape"] = req.border_shape
+    
+    all_summaries = []
+    for l_key, l_data in session["layers"].items():
+        all_summaries.append({
+            "layer_name": str(l_key),
+            "code": str(l_data.get("code", l_key)),
+            "major": str(l_data.get("major", "기타")),
+            "mid": str(l_data.get("mid", "기타")),
+            "minor": str(l_data.get("minor", l_key)),
+            "geom_type": str(l_data.get("geom_type", "Polygon")),
+            "feature_count": int(len(l_data.get("features", []))),
+            "style": l_data.get("style", {}),
+            "has_elevation": bool(any(f.get("elevation") is not None and abs(f.get("elevation", 0)) > 1e-4 for f in l_data.get("features", [])))
+        })
+        
+    return {
+        "session_id": str(session_id),
         "address": str(jibeon_data["search_result"]["address"]),
         "target_pnu": str(jibeon_data["target_pnu"]),
         "target_label": str(jibeon_data["target_label"]),

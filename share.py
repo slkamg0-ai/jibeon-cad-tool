@@ -1,12 +1,20 @@
-"""폰에서 접속할 주소를 만든다. (cad-viewer 의 같은 모듈과 동일한 구조)
+# -*- coding: utf-8 -*-
+"""스마트폰/외부 접속을 위한 멀티 접속 허브 및 주소 공유 모듈.
 
-접속 방식이 두 가지다.
+접속 방식:
+  1) Tailscale (영구 고정 - 강력 추천):
+     - PC의 테일넷 가상 IP(100.x.x.x)와 MagicDNS로 접속합니다.
+     - PC 재부팅, 네트워크 변경(Wi-Fi/LTE/5G)과 무관하게 주소가 100% 영구 불변합니다.
+     - 스마트폰(iPhone, Galaxy 등)에 Tailscale 앱이 켜져 있으면 외부 어디서나 접속 가능합니다.
+     - 모바일 브라우저에서 '홈 화면에 추가' 시 평생 앱처럼 사용 가능.
 
-  tailscale (기본)  이 PC의 테일넷 주소로 직접 붙는다. 폰에 Tailscale 앱만 켜져 있으면
-                    LTE 로도 접속되고, 인터넷에 공개되지 않는다.
-  cloudflare        무계정 quick tunnel 로 공인 HTTPS 주소를 받는다.
-                    다만 Cloudflare 가 호스트명을 DNS 에 올려주지 않는 경우가 있어
-                    (터널은 등록되는데 이름이 NXDOMAIN) 주소를 넘기기 전에 확인한다.
+  2) Cloudflare (외부 공개용 웹 터널):
+     - Tailscale 미설치 기기나 동료에게 일회성 링크를 공유할 때 사용.
+     - 토큰(cloudflare_token.txt)이 있으면 영구 고정 도메인으로 작동.
+     - 토큰이 없으면 무계정 Quick Tunnel(임시 주소)로 작동.
+
+  3) 사내망/로컬 접속:
+     - 사내 Wi-Fi/LAN IP 및 localhost 접속.
 """
 
 from __future__ import annotations
@@ -25,9 +33,11 @@ from pathlib import Path
 
 URL_RE = re.compile(r"https://[a-zA-Z0-9][-a-zA-Z0-9.]*\.trycloudflare\.com")
 
-# ------------------------------------------------------------------ QR 페이지
+
+# ------------------------------------------------------------------ QR 생성기
 
 def qr_svg(url: str) -> str:
+    """URL에 대한 깨끗한 SVG 문자열을 반환한다."""
     try:
         import segno
 
@@ -37,63 +47,22 @@ def qr_svg(url: str) -> str:
             dark="#14171c", light="#ffffff", xmldecl=False, svgns=True,
         )
         return buf.getvalue().decode("utf-8")
-    except Exception as exc:                       # segno 미설치 등
-        print(f"[공유] QR 생성 실패({exc}) - 주소만 표시합니다.")
-        return '<p style="color:#e06c75">아래 주소를 폰에 직접 입력하세요.</p>'
+    except Exception as exc:
+        return f'<p style="color:#e06c75;padding:20px;">QR 생성 실패 ({exc})<br>아래 주소를 폰에 직접 입력하세요.</p>'
 
 
-def write_qr_page(url: str, dest: Path, note: str, warn: str = "") -> Path | None:
-    html = f"""<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
-<title>NGII CAD 스튜디오 - 폰으로 열기</title>
-<style>
- body{{margin:0;min-height:100vh;display:grid;place-items:center;background:#14171c;color:#e4e8ef;
-      font:16px/1.5 "Malgun Gothic","맑은 고딕",sans-serif;text-align:center;padding:28px}}
- .card{{max-width:470px}}
- h1{{font-size:22px;margin:0 0 6px;color:#ffb454}}
- p.note{{color:#8c96a6;margin:0 0 22px;font-size:14px;line-height:1.7}}
- .qr{{background:#fff;padding:14px;border-radius:16px;display:inline-block;line-height:0}}
- .qr svg{{width:260px;height:260px}}
- .url{{margin-top:20px;background:#1b1f26;border:1px solid #333b47;border-radius:10px;
-       padding:13px;font:13px/1.5 monospace;word-break:break-all;color:#4ec9b0}}
- button{{margin-top:12px;background:#ffb454;border:0;color:#1a1204;font:600 15px/1 inherit;
-         padding:13px 20px;border-radius:10px;cursor:pointer}}
- .warn{{margin-top:24px;font-size:12.5px;color:#e06c75;line-height:1.6}}
-</style></head><body><div class="card">
-<h1>폰으로 열기</h1>
-<p class="note">{note}</p>
-<div class="qr">{qr_svg(url)}</div>
-<div class="url" id="u">{url}</div>
-<button onclick="navigator.clipboard.writeText(document.getElementById('u').textContent);this.textContent='복사됨'">주소 복사</button>
-{f'<p class="warn">{warn}</p>' if warn else ''}
-</div></body></html>"""
+def save_qr_png(url: str, dest: Path) -> bool:
+    """URL을 PNG 이미지 파일로 저장한다."""
     try:
-        dest.write_text(html, encoding="utf-8")
-        return dest
-    except OSError:
-        return None
+        import segno
+        segno.make(url, error="m").save(str(dest), scale=8, border=2)
+        return True
+    except Exception as e:
+        print(f"[QR] PNG 저장 실패 ({dest.name}): {e}")
+        return False
 
 
-def announce(url: str, project_dir: Path, note: str, warn: str = "") -> None:
-    print("\n" + "=" * 66)
-    print(f"  폰에서 접속:  {url}")
-    for line in note.replace("<br>", "\n").split("\n"):
-        if line.strip():
-            print(f"  {line.strip()}")
-    print("=" * 66 + "\n")
-    (project_dir / "tunnel_url.txt").write_text(url, encoding="utf-8")
-    try:
-        import urllib.parse
-        import urllib.request
-        qr_api_url = f"https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={urllib.parse.quote(url)}"
-        urllib.request.urlretrieve(qr_api_url, str(project_dir / "mobile_access_qr.png"))
-    except Exception:
-        pass
-    page = write_qr_page(url, project_dir / "phone_access.html", note, warn)
-    if page:
-        webbrowser.open(page.as_uri())
-
-
-# ------------------------------------------------------------------ Tailscale
+# ------------------------------------------------------------------ Tailscale 탐색
 
 TAILSCALE_PATHS = [
     r"C:\Program Files\Tailscale\tailscale.exe",
@@ -115,13 +84,13 @@ def find_tailscale() -> str | None:
 
 
 def tailscale_self() -> tuple[str, str] | None:
-    """(테일넷 IPv4, MagicDNS 이름) 을 돌려준다. 로그인 상태가 아니면 None."""
+    """(테일넷 IPv4, MagicDNS 이름) 을 반환한다. 미로그인 시 None."""
     exe = find_tailscale()
     if not exe:
         return None
     try:
         out = subprocess.run(
-            [exe, "status", "--json"], capture_output=True, timeout=20,
+            [exe, "status", "--json"], capture_output=True, timeout=10,
             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         )
         data = json.loads(out.stdout.decode("utf-8", "replace"))
@@ -134,37 +103,17 @@ def tailscale_self() -> tuple[str, str] | None:
     ips = [ip for ip in (me.get("TailscaleIPs") or []) if ":" not in ip]
     if not ips:
         return None
-    return ips[0], (me.get("DNSName") or "").rstrip(".")
+    dns = (me.get("DNSName") or "").rstrip(".")
+    return ips[0], dns
 
 
-TAILSCALE_HINT = (
-    "Tailscale 로 접속할 수 없습니다.\n"
-    "  - 작업표시줄의 Tailscale 이 켜져 있고 로그인돼 있는지 확인하세요.\n"
-    "  - 폰에도 Tailscale 앱을 설치해 같은 계정으로 로그인해야 합니다.\n"
-    "  - 설치 경로가 다르면 환경변수 TAILSCALE 에 tailscale.exe 경로를 지정하세요."
-)
-
-
-# ------------------------------------------------------------------ Cloudflare
+# ------------------------------------------------------------------ Cloudflare 터널
 
 CLOUDFLARED_PATHS = [
     r"C:\Program Files (x86)\cloudflared\cloudflared.exe",
     r"C:\Program Files\cloudflared\cloudflared.exe",
     r"C:\Users\{user}\Documents\Claude\jibeon-cad-tool\cloudflared.exe",
 ]
-
-CLOUDFLARED_HINT = (
-    "cloudflared 를 찾지 못했습니다.\n"
-    "  https://github.com/cloudflare/cloudflared/releases 에서 받아 프로젝트 폴더에 두거나,\n"
-    "  환경변수 CLOUDFLARED 에 실행 파일 경로를 지정하세요."
-)
-
-QUICK_TUNNEL_BLOCKED = (
-    "Cloudflare 가 이 터널 주소를 DNS 에 올려주지 않았습니다.\n"
-    "  터널 연결 자체는 성공했지만 호스트명이 조회되지 않습니다(무계정 quick tunnel 제한).\n"
-    "  Cloudflare 쪽 문제라 이 PC 에서 고칠 수 없습니다.\n"
-    "  Tailscale 경유로 접속하세요 (이 창 위쪽 안내 참고)."
-)
 
 
 def find_cloudflared(project_dir: Path) -> str | None:
@@ -185,7 +134,7 @@ def find_cloudflared(project_dir: Path) -> str | None:
     return None
 
 
-def hostname_resolves(host: str, timeout_s: float = 45.0) -> bool:
+def hostname_resolves(host: str, timeout_s: float = 40.0) -> bool:
     """터널 호스트명이 실제로 DNS 에 올라올 때까지 기다린다."""
     deadline = time.time() + timeout_s
     while time.time() < deadline:
@@ -193,70 +142,474 @@ def hostname_resolves(host: str, timeout_s: float = 45.0) -> bool:
             socket.getaddrinfo(host, 443)
             return True
         except socket.gaierror:
-            time.sleep(3)
+            time.sleep(2)
     return False
 
 
 class CloudflareTunnel:
-    def __init__(self, port: int, project_dir: Path):
+    """Cloudflare 터널 매니저. 토큰이 있으면 고정 도메인, 없으면 Quick Tunnel."""
+
+    def __init__(self, port: int, project_dir: Path, on_url=None):
         self.port = port
         self.project_dir = project_dir
+        self.on_url = on_url
         self.proc: subprocess.Popen | None = None
         self.url: str | None = None
         self.running: bool = True
 
-    def start(self, delay: float = 1.5) -> None:
+    def start(self, delay: float = 1.0) -> None:
         exe = find_cloudflared(self.project_dir)
         if not exe:
-            print("\n[공유] " + CLOUDFLARED_HINT + "\n")
+            print("[공유] cloudflared.exe 를 찾을 수 없어 Cloudflare 터널을 건너뜁니다.")
             return
         threading.Thread(target=self._run, args=(exe, delay), daemon=True).start()
 
     def _run(self, exe: str, delay: float) -> None:
-        time.sleep(delay)                       # 웹서버가 먼저 뜨도록 잠깐 기다린다
-        while self.running:
-            cmd = [exe, "tunnel", "--no-autoupdate", "--url", f"http://127.0.0.1:{self.port}"]
-            try:
-                self.proc = subprocess.Popen(
-                    cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
-                    encoding="utf-8", errors="replace", bufsize=1,
-                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
-                )
-            except OSError as exc:
-                print(f"[공유] cloudflared 실행 실패: {exc}")
-                return
+        time.sleep(delay)
+        token_file = self.project_dir / "cloudflare_token.txt"
+        token = os.environ.get("CLOUDFLARE_TUNNEL_TOKEN", "")
+        if not token and token_file.exists():
+            token = token_file.read_text(encoding="utf-8").strip()
 
-            self.url = None
-            if self.proc.stdout:
-                for line in self.proc.stdout:
-                    if self.url:
-                        continue                        # 주소를 얻은 뒤 로그는 흘려보낸다
-                    found = URL_RE.search(line)
-                    if found:
-                        self.url = found.group(0)
-                        self._verify_and_announce()
+        domain_file = self.project_dir / "cloudflare_domain.txt"
+        fixed_domain = os.environ.get("CLOUDFLARE_DOMAIN", "")
+        if not fixed_domain and domain_file.exists():
+            fixed_domain = domain_file.read_text(encoding="utf-8").strip()
+
+        while self.running:
+            if token:
+                # 1) 고정 도메인 / Named Tunnel 모드
+                cmd = [exe, "tunnel", "run", "--token", token]
+                print("[Cloudflare] 사용자 등록 토큰으로 고정 터널을 시작합니다.")
+                try:
+                    self.proc = subprocess.Popen(
+                        cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+                        encoding="utf-8", errors="replace", bufsize=1,
+                        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+                    )
+                except OSError as exc:
+                    print(f"[Cloudflare] 실행 실패: {exc}")
+                    return
+
+                if fixed_domain:
+                    self.url = f"https://{fixed_domain}"
+                    if self.on_url:
+                        self.on_url(self.url)
+                if self.proc.stdout:
+                    for _ in self.proc.stdout:
+                        if not self.running:
+                            break
+            else:
+                # 2) 무료 Quick Tunnel 모드 (trycloudflare.com)
+                cmd = [exe, "tunnel", "--no-autoupdate", "--url", f"http://127.0.0.1:{self.port}"]
+                try:
+                    self.proc = subprocess.Popen(
+                        cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+                        encoding="utf-8", errors="replace", bufsize=1,
+                        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+                    )
+                except OSError as exc:
+                    print(f"[Cloudflare] 실행 실패: {exc}")
+                    return
+
+                self.url = None
+                if self.proc.stdout:
+                    for line in self.proc.stdout:
+                        if self.url:
+                            continue
+                        found = URL_RE.search(line)
+                        if found:
+                            self.url = found.group(0)
+                            host = self.url.split("//", 1)[1]
+                            print(f"[Cloudflare] 임시 주소 발급: {self.url} (DNS 등록 검증 중...)")
+                            if hostname_resolves(host, timeout_s=40.0):
+                                print(f"[Cloudflare] DNS 활성화 완료: {self.url}")
+                                if self.on_url:
+                                    self.on_url(self.url)
+                            else:
+                                print(f"[Cloudflare] DNS 조회 대기 초과 ({host}). 터널 연결은 유지됩니다.")
+                                if self.on_url:
+                                    self.on_url(self.url)
 
             if not self.running:
                 break
-            print("\n[공유] Cloudflare 터널 연결이 종료/갱신되었습니다. 2초 후 자동 재연결합니다...")
+            print("[Cloudflare] 터널 연결이 재시작됩니다 (2초 대기)...")
             time.sleep(2)
-
-    def _verify_and_announce(self) -> None:
-        host = self.url.split("//", 1)[1]
-        print(f"[공유] 주소 발급: {self.url}  — DNS 등록을 확인하는 중…")
-        if not hostname_resolves(host):
-            print("\n" + "!" * 66)
-            print(QUICK_TUNNEL_BLOCKED)
-            print("!" * 66 + "\n")
-            return
-        announce(
-            self.url, self.project_dir,
-            "폰 카메라로 QR을 비추면 CAD 스튜디오가 열립니다.",
-            "이 주소는 인터넷에 공개됩니다. 링크를 함부로 공유하지 말고, "
-            "다 쓰면 서버 창을 닫아 터널을 내리세요.",
-        )
 
     def stop(self) -> None:
         self.running = False
         if self.proc and self.proc.poll() is None:
             self.proc.terminate()
+
+
+# ------------------------------------------------------------------ 통합 접속 허브 UI
+
+def build_hub_html(
+    tailscale_url: str | None,
+    tailscale_dns: str | None,
+    cloudflare_url: str | None,
+    lan_url: str,
+    local_url: str,
+) -> str:
+    ts_qr = qr_svg(tailscale_url) if tailscale_url else ""
+    cf_qr = qr_svg(cloudflare_url) if cloudflare_url else ""
+    lan_qr = qr_svg(lan_url)
+    active_tab = "ts" if tailscale_url else "cf"
+
+    ts_pane_content = ""
+    if tailscale_url:
+        ts_pane_content = f'''<div class="qr-frame">{ts_qr}</div>
+    <div class="url-box">
+      <span class="url-text" id="url-ts">{tailscale_url}</span>
+      <button class="copy-btn" onclick="copyText('url-ts', this)">주소 복사</button>
+    </div>'''
+    else:
+        ts_pane_content = '<p style="color:#f85149;padding:20px;">Tailscale 이 꺼져 있습니다.<br>PC에서 Tailscale을 켜주세요.</p>'
+
+    dns_hint = f'<p style="margin-top:8px;font-size:12px;color:#58a6ff">MagicDNS 주소: <code>http://{tailscale_dns}</code></p>' if tailscale_dns else ''
+
+    cf_pane_content = ""
+    if cloudflare_url:
+        cf_pane_content = f'''<div class="qr-frame">{cf_qr}</div>
+    <div class="url-box">
+      <span class="url-text" id="url-cf">{cloudflare_url}</span>
+      <button class="copy-btn" onclick="copyText('url-cf', this)">주소 복사</button>
+    </div>'''
+    else:
+        cf_pane_content = '''<div class="qr-frame" style="padding:40px 20px;color:#8b949e">
+      Cloudflare 터널 연결 중...<br><small>약 10~20초 소요됩니다</small>
+    </div>
+    <div class="url-box"><span class="url-text" style="color:#8b949e">주소 발급 대기 중...</span></div>'''
+
+    return f'''<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>NGII CAD 스튜디오 - 스마트폰 & 외부 접속 허브</title>
+  <style>
+    :root {{
+      --bg: #0d1117;
+      --card-bg: #161b22;
+      --border: #30363d;
+      --text: #c9d1d9;
+      --heading: #f0f6fc;
+      --accent: #ffb454;
+      --green: #3fb950;
+      --blue: #58a6ff;
+      --purple: #bc8cff;
+      --yellow: #d29922;
+    }}
+    * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+    body {{
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Malgun Gothic", "맑은 고딕", Roboto, sans-serif;
+      padding: 20px;
+      line-height: 1.6;
+    }}
+    .container {{
+      width: 100%;
+      max-width: 520px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 28px 24px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+      text-align: center;
+    }}
+    .header-icon {{ font-size: 34px; margin-bottom: 6px; }}
+    h1 {{ font-size: 21px; color: var(--heading); margin-bottom: 6px; font-weight: 700; }}
+    p.subtitle {{ color: #8b949e; font-size: 13.5px; margin-bottom: 20px; }}
+    .tabs {{
+      display: flex;
+      gap: 6px;
+      background: #0d1117;
+      padding: 5px;
+      border-radius: 12px;
+      margin-bottom: 22px;
+      border: 1px solid var(--border);
+    }}
+    .tab-btn {{
+      flex: 1;
+      background: transparent;
+      border: 0;
+      color: #8b949e;
+      font-size: 13.5px;
+      font-weight: 600;
+      padding: 10px 6px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+    }}
+    .tab-btn:hover {{ color: var(--heading); }}
+    .tab-btn.active {{
+      background: #21262d;
+      color: var(--accent);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }}
+    .badge-group {{
+      display: flex;
+      justify-content: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }}
+    .badge {{
+      display: inline-block;
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 12px;
+    }}
+    .badge-green {{ background: rgba(63, 185, 80, 0.15); color: #56d364; border: 1px solid rgba(63, 185, 80, 0.3); }}
+    .badge-blue {{ background: rgba(88, 166, 255, 0.15); color: #79c0ff; border: 1px solid rgba(88, 166, 255, 0.3); }}
+    .badge-purple {{ background: rgba(188, 140, 255, 0.15); color: #d2a8ff; border: 1px solid rgba(188, 140, 255, 0.3); }}
+    .badge-yellow {{ background: rgba(210, 153, 34, 0.15); color: #e3b341; border: 1px solid rgba(210, 153, 34, 0.3); }}
+    .qr-frame {{
+      background: #ffffff;
+      padding: 14px;
+      border-radius: 16px;
+      display: inline-block;
+      line-height: 0;
+      margin-bottom: 18px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    }}
+    .qr-frame svg {{ width: 220px; height: 220px; }}
+    .url-box {{
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-family: ui-monospace, monospace;
+      font-size: 13.5px;
+      color: #58a6ff;
+      word-break: break-all;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      text-align: left;
+    }}
+    .url-text {{ flex: 1; font-weight: 500; }}
+    .copy-btn {{
+      background: #21262d;
+      color: var(--heading);
+      border: 1px solid var(--border);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }}
+    .copy-btn:hover {{ background: var(--accent); color: #0d1117; border-color: var(--accent); }}
+    .copy-btn.copied {{ background: var(--green); color: #0d1117; border-color: var(--green); }}
+    .guide-card {{
+      background: #0d1117;
+      border: 1px solid #21262d;
+      border-radius: 12px;
+      padding: 14px 16px;
+      text-align: left;
+      font-size: 13px;
+      color: #8b949e;
+      margin-top: 14px;
+      line-height: 1.6;
+    }}
+    .guide-card strong {{ color: var(--heading); }}
+    .guide-card ol {{ margin: 8px 0 4px 18px; padding: 0; }}
+    .guide-card li {{ margin-bottom: 4px; }}
+    .tip-tag {{
+      display: inline-block;
+      background: rgba(255, 180, 84, 0.2);
+      color: var(--accent);
+      font-weight: 600;
+      font-size: 11px;
+      padding: 1px 6px;
+      border-radius: 4px;
+      margin-right: 4px;
+    }}
+    .tab-pane {{ display: none; }}
+    .tab-pane.active {{ display: block; }}
+    .footer {{ margin-top: 20px; font-size: 12px; color: #484f58; }}
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header-icon">🗺️</div>
+  <h1>NGII 지적도 CAD 스튜디오</h1>
+  <p class="subtitle">스마트폰 카메라로 QR 코드를 비추면 즉시 열립니다.</p>
+
+  <div class="tabs">
+    <button class="tab-btn {'active' if active_tab == 'ts' else ''}" onclick="openTab('ts', this)">
+      <span>📱</span> 평생 고정 (Tailscale)
+    </button>
+    <button class="tab-btn {'active' if active_tab == 'cf' else ''}" onclick="openTab('cf', this)">
+      <span>🌐</span> 외부 공유 (Cloudflare)
+    </button>
+    <button class="tab-btn" onclick="openTab('lan', this)">
+      <span>🏢</span> 사내망 / 로컬
+    </button>
+  </div>
+
+  <!-- TAB 1: Tailscale -->
+  <div id="pane-ts" class="tab-pane {'active' if active_tab == 'ts' else ''}">
+    <div class="badge-group">
+      <span class="badge badge-green">⭐ 100% 영구 불변 주소</span>
+      <span class="badge badge-blue">LTE/5G 외부 접속</span>
+      <span class="badge badge-purple">기기 간 암호화</span>
+    </div>
+
+    {ts_pane_content}
+
+    <div class="guide-card">
+      <strong>📌 접속 주소가 바뀌지 않는 영구 해결책!</strong>
+      <ol>
+        <li>스마트폰(아이폰/갤럭시) 카메라로 위 QR 코드를 비춥니다.</li>
+        <li>사용자님의 <strong>iPhone 13 mini</strong>에 이미 Tailscale이 연결되어 있어 즉시 열립니다.</li>
+        <li><span class="tip-tag">강력추천</span> 접속 후 Safari 하단 공유 버튼 -> <strong>「홈 화면에 추가」</strong>를 누르면 바탕화면 앱으로 평생 탭 한 번에 실행됩니다!</li>
+      </ol>
+      {dns_hint}
+    </div>
+  </div>
+
+  <!-- TAB 2: Cloudflare -->
+  <div id="pane-cf" class="tab-pane {'active' if active_tab == 'cf' else ''}">
+    <div class="badge-group">
+      <span class="badge badge-yellow">🌐 인터넷 전체 공개용</span>
+      <span class="badge badge-blue">앱 설치 불필요</span>
+    </div>
+
+    {cf_pane_content}
+
+    <div class="guide-card">
+      <strong>ℹ️ Tailscale 미설치 동료/외부 기기 공유용</strong>
+      <p style="margin-top:4px">
+        - 누구나 브라우저만 있으면 바로 열 수 있는 공용 웹 링크입니다.<br>
+        - 무계정 무료 터널 특성상 서버를 재실행하면 주소가 새로 발급됩니다.<br>
+        - <strong>평생 고정 웹 도메인</strong>을 원하시면 Cloudflare Zero Trust 무료 계정의 터널 토큰을 <code>cloudflare_token.txt</code>에 등록하시면 됩니다.
+      </p>
+    </div>
+  </div>
+
+  <!-- TAB 3: LAN / Local -->
+  <div id="pane-lan" class="tab-pane">
+    <div class="badge-group">
+      <span class="badge badge-green">🏢 사내망 Wi-Fi</span>
+      <span class="badge badge-blue">PC 로컬</span>
+    </div>
+
+    <div class="qr-frame">{lan_qr}</div>
+
+    <div class="url-box">
+      <span class="url-text" id="url-lan">{lan_url}</span>
+      <button class="copy-btn" onclick="copyText('url-lan', this)">주소 복사</button>
+    </div>
+
+    <div class="guide-card">
+      <strong>사내 Wi-Fi 공유기 접속</strong>
+      <p style="margin-top:4px">
+        - 같은 사무실/가정 내 같은 Wi-Fi 공유기에 연결된 기기에서 접속 가능합니다.<br>
+        - 이 PC 브라우저 접속: <a href="{local_url}" target="_blank" style="color:#58a6ff">{local_url}</a>
+      </p>
+    </div>
+  </div>
+
+  <p class="footer">NGII Map & Cad Studio • Powered by Antigravity</p>
+</div>
+
+<script>
+  function openTab(tabId, btn) {{
+    document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    const pane = document.getElementById('pane-' + tabId);
+    if (pane) pane.classList.add('active');
+    if (btn) btn.classList.add('active');
+  }}
+
+  function copyText(elemId, btn) {{
+    const el = document.getElementById(elemId);
+    if (!el) return;
+    navigator.clipboard.writeText(el.textContent.trim()).then(() => {{
+      const orig = btn.textContent;
+      btn.textContent = '복사됨 ✓';
+      btn.classList.add('copied');
+      setTimeout(() => {{
+        btn.textContent = orig;
+        btn.classList.remove('copied');
+      }}, 2000);
+    }}).catch(() => {{
+      alert('주소 복사 실패: ' + el.textContent);
+    }});
+  }}
+</script>
+</body>
+</html>
+'''
+
+
+def announce_hub(
+    project_dir: Path,
+    port: int,
+    tailscale_info: tuple[str, str] | None,
+    cloudflare_url: str | None,
+    lan_ip: str,
+    open_browser: bool = False,
+) -> None:
+    """통합 접속 주소들을 콘솔에 출력하고 HTML 안내 페이지 및 파일들을 갱신한다."""
+
+    ts_url = f"http://{tailscale_info[0]}:{port}" if tailscale_info else None
+    ts_dns = f"{tailscale_info[1]}:{port}" if tailscale_info else None
+    lan_url = f"http://{lan_ip}:{port}"
+    local_url = f"http://localhost:{port}"
+
+    print("\n" + "=" * 70)
+    print("  [NGII Map Studio] - 접속 주소 안내")
+    print("=" * 70)
+
+    if ts_url:
+        print("\n  [1] [추천] 평생 바뀌지 않는 영구 고정 주소 (Tailscale):")
+        print(f"      IP 주소:     {ts_url}")
+        if ts_dns:
+            print(f"      MagicDNS:    http://{ts_dns}")
+        print("      * PC 재부팅이나 외부(LTE/5G)에서도 절대 바뀌지 않는 영구 주소입니다.")
+        print("      * 사용자님의 iPhone 13 mini에 Tailscale이 켜져 있으면 언제든 즉시 접속됩니다.")
+        print('      * 모바일 브라우저에서 "홈 화면에 추가"하면 앱처럼 평생 사용하실 수 있습니다.')
+        (project_dir / "permanent_url.txt").write_text(ts_url, encoding="utf-8")
+        save_qr_png(ts_url, project_dir / "mobile_access_qr_permanent.png")
+        save_qr_png(ts_url, project_dir / "mobile_access_qr.png")
+
+    if cloudflare_url:
+        print("\n  [2] 외부 공개용 웹 주소 (Cloudflare):")
+        print(f"      접속 주소:   {cloudflare_url}")
+        print("      * Tailscale 미설치 외부 기기/동료 공유용 (임시 터널)")
+        (project_dir / "tunnel_url.txt").write_text(cloudflare_url, encoding="utf-8")
+        save_qr_png(cloudflare_url, project_dir / "mobile_access_qr_cloudflare.png")
+        if not ts_url:
+            save_qr_png(cloudflare_url, project_dir / "mobile_access_qr.png")
+
+    print("\n  [3] 사내망/PC 로컬:")
+    print(f"      사내 Wi-Fi:  {lan_url}")
+    print(f"      PC 로컬:     {local_url}")
+    print("=" * 70 + "\n")
+
+    html_content = build_hub_html(ts_url, ts_dns, cloudflare_url, lan_url, local_url)
+    dest_page = project_dir / "phone_access.html"
+    try:
+        dest_page.write_text(html_content, encoding="utf-8")
+        if open_browser:
+            webbrowser.open(dest_page.as_uri())
+    except Exception as exc:
+        print(f"[공유] 안내 페이지 생성 실패: {exc}")

@@ -1,24 +1,287 @@
-<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
-<title>NGII CAD 스튜디오 - 폰으로 열기</title>
-<style>
- body{margin:0;min-height:100vh;display:grid;place-items:center;background:#14171c;color:#e4e8ef;
-      font:16px/1.5 "Malgun Gothic","맑은 고딕",sans-serif;text-align:center;padding:28px}
- .card{max-width:470px}
- h1{font-size:22px;margin:0 0 6px;color:#ffb454}
- p.note{color:#8c96a6;margin:0 0 22px;font-size:14px;line-height:1.7}
- .qr{background:#fff;padding:14px;border-radius:16px;display:inline-block;line-height:0}
- .qr svg{width:260px;height:260px}
- .url{margin-top:20px;background:#1b1f26;border:1px solid #333b47;border-radius:10px;
-       padding:13px;font:13px/1.5 monospace;word-break:break-all;color:#4ec9b0}
- button{margin-top:12px;background:#ffb454;border:0;color:#1a1204;font:600 15px/1 inherit;
-         padding:13px 20px;border-radius:10px;cursor:pointer}
- .warn{margin-top:24px;font-size:12.5px;color:#e06c75;line-height:1.6}
-</style></head><body><div class="card">
-<h1>폰으로 열기</h1>
-<p class="note">폰 카메라로 QR을 비추면 CAD 스튜디오가 열립니다.</p>
-<div class="qr"><svg xmlns="http://www.w3.org/2000/svg" width="333" height="333" class="segno"><g transform="scale(9)"><path fill="#fff" d="M0 0h37v37h-37z"/><path class="qrline" stroke="#14171c" d="M2 2.5h7m1 0h2m1 0h5m1 0h2m2 0h1m1 0h2m1 0h7m-33 1h1m5 0h1m2 0h2m1 0h3m1 0h2m1 0h1m1 0h2m3 0h1m5 0h1m-33 1h1m1 0h3m1 0h1m3 0h1m1 0h1m1 0h1m2 0h1m1 0h3m1 0h1m2 0h1m1 0h3m1 0h1m-33 1h1m1 0h3m1 0h1m1 0h3m4 0h2m1 0h2m6 0h1m1 0h3m1 0h1m-33 1h1m1 0h3m1 0h1m1 0h5m3 0h3m1 0h4m2 0h1m1 0h3m1 0h1m-33 1h1m5 0h1m1 0h1m1 0h1m1 0h2m1 0h1m1 0h1m1 0h1m2 0h1m1 0h1m1 0h1m5 0h1m-33 1h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7m-25 1h1m2 0h2m1 0h1m2 0h1m2 0h2m1 0h2m-25 1h1m3 0h1m1 0h6m3 0h1m1 0h7m1 0h5m2 0h1m-32 1h2m4 0h2m1 0h1m1 0h1m2 0h2m1 0h1m4 0h1m1 0h1m3 0h2m-31 1h4m1 0h2m3 0h1m1 0h5m3 0h2m1 0h1m1 0h2m2 0h1m1 0h1m-32 1h2m2 0h1m2 0h1m4 0h2m3 0h2m2 0h1m4 0h1m4 0h2m-33 1h1m1 0h1m1 0h3m1 0h6m1 0h3m2 0h3m1 0h1m1 0h1m1 0h2m-29 1h3m5 0h1m1 0h1m2 0h1m2 0h2m4 0h1m6 0h1m-28 1h5m1 0h2m3 0h2m1 0h2m2 0h1m1 0h4m2 0h1m1 0h1m-31 1h2m1 0h1m9 0h6m1 0h2m2 0h4m-29 1h1m1 0h1m3 0h1m5 0h1m4 0h1m1 0h4m3 0h1m1 0h2m1 0h1m-32 1h3m1 0h1m3 0h3m3 0h5m4 0h1m1 0h1m3 0h3m-31 1h1m1 0h6m2 0h2m1 0h2m2 0h1m1 0h2m1 0h3m1 0h1m1 0h1m1 0h1m-32 1h3m1 0h1m6 0h9m1 0h3m3 0h1m-28 1h2m2 0h1m1 0h1m3 0h3m2 0h1m1 0h1m1 0h1m1 0h4m1 0h4m1 0h1m-32 1h1m6 0h3m1 0h1m2 0h1m1 0h3m2 0h1m1 0h1m3 0h1m2 0h2m-30 1h2m1 0h2m1 0h3m1 0h1m3 0h3m1 0h6m1 0h1m1 0h1m1 0h1m-30 1h4m3 0h2m1 0h1m1 0h1m2 0h2m2 0h1m1 0h1m3 0h2m-29 1h2m1 0h1m1 0h3m1 0h1m2 0h1m1 0h2m1 0h1m1 0h1m1 0h8m2 0h1m-24 1h2m1 0h1m2 0h5m3 0h1m1 0h1m3 0h1m1 0h2m-32 1h7m1 0h1m3 0h2m1 0h4m1 0h1m3 0h1m1 0h1m1 0h2m1 0h1m-32 1h1m5 0h1m3 0h1m1 0h1m1 0h2m1 0h2m2 0h2m1 0h1m3 0h1m2 0h2m-33 1h1m1 0h3m1 0h1m1 0h1m2 0h4m3 0h1m1 0h3m1 0h6m1 0h2m-33 1h1m1 0h3m1 0h1m2 0h2m2 0h1m4 0h1m4 0h2m1 0h5m-31 1h1m1 0h3m1 0h1m2 0h1m1 0h3m1 0h3m5 0h1m2 0h3m-29 1h1m5 0h1m3 0h1m2 0h1m1 0h4m1 0h3m1 0h1m-25 1h7m1 0h2m1 0h3m2 0h2m2 0h6m3 0h1m2 0h1"/></g></svg>
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>NGII CAD 스튜디오 - 스마트폰 & 외부 접속 허브</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --card-bg: #161b22;
+      --border: #30363d;
+      --text: #c9d1d9;
+      --heading: #f0f6fc;
+      --accent: #ffb454;
+      --green: #3fb950;
+      --blue: #58a6ff;
+      --purple: #bc8cff;
+      --yellow: #d29922;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Malgun Gothic", "맑은 고딕", Roboto, sans-serif;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    .container {
+      width: 100%;
+      max-width: 520px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 28px 24px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+      text-align: center;
+    }
+    .header-icon { font-size: 34px; margin-bottom: 6px; }
+    h1 { font-size: 21px; color: var(--heading); margin-bottom: 6px; font-weight: 700; }
+    p.subtitle { color: #8b949e; font-size: 13.5px; margin-bottom: 20px; }
+    .tabs {
+      display: flex;
+      gap: 6px;
+      background: #0d1117;
+      padding: 5px;
+      border-radius: 12px;
+      margin-bottom: 22px;
+      border: 1px solid var(--border);
+    }
+    .tab-btn {
+      flex: 1;
+      background: transparent;
+      border: 0;
+      color: #8b949e;
+      font-size: 13.5px;
+      font-weight: 600;
+      padding: 10px 6px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+    }
+    .tab-btn:hover { color: var(--heading); }
+    .tab-btn.active {
+      background: #21262d;
+      color: var(--accent);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+    .badge-group {
+      display: flex;
+      justify-content: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+    .badge {
+      display: inline-block;
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 12px;
+    }
+    .badge-green { background: rgba(63, 185, 80, 0.15); color: #56d364; border: 1px solid rgba(63, 185, 80, 0.3); }
+    .badge-blue { background: rgba(88, 166, 255, 0.15); color: #79c0ff; border: 1px solid rgba(88, 166, 255, 0.3); }
+    .badge-purple { background: rgba(188, 140, 255, 0.15); color: #d2a8ff; border: 1px solid rgba(188, 140, 255, 0.3); }
+    .badge-yellow { background: rgba(210, 153, 34, 0.15); color: #e3b341; border: 1px solid rgba(210, 153, 34, 0.3); }
+    .qr-frame {
+      background: #ffffff;
+      padding: 14px;
+      border-radius: 16px;
+      display: inline-block;
+      line-height: 0;
+      margin-bottom: 18px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    }
+    .qr-frame svg { width: 220px; height: 220px; }
+    .url-box {
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-family: ui-monospace, monospace;
+      font-size: 13.5px;
+      color: #58a6ff;
+      word-break: break-all;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      text-align: left;
+    }
+    .url-text { flex: 1; font-weight: 500; }
+    .copy-btn {
+      background: #21262d;
+      color: var(--heading);
+      border: 1px solid var(--border);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+    .copy-btn:hover { background: var(--accent); color: #0d1117; border-color: var(--accent); }
+    .copy-btn.copied { background: var(--green); color: #0d1117; border-color: var(--green); }
+    .guide-card {
+      background: #0d1117;
+      border: 1px solid #21262d;
+      border-radius: 12px;
+      padding: 14px 16px;
+      text-align: left;
+      font-size: 13px;
+      color: #8b949e;
+      margin-top: 14px;
+      line-height: 1.6;
+    }
+    .guide-card strong { color: var(--heading); }
+    .guide-card ol { margin: 8px 0 4px 18px; padding: 0; }
+    .guide-card li { margin-bottom: 4px; }
+    .tip-tag {
+      display: inline-block;
+      background: rgba(255, 180, 84, 0.2);
+      color: var(--accent);
+      font-weight: 600;
+      font-size: 11px;
+      padding: 1px 6px;
+      border-radius: 4px;
+      margin-right: 4px;
+    }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+    .footer { margin-top: 20px; font-size: 12px; color: #484f58; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header-icon">🗺️</div>
+  <h1>NGII 지적도 CAD 스튜디오</h1>
+  <p class="subtitle">스마트폰 카메라로 QR 코드를 비추면 즉시 열립니다.</p>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="openTab('ts', this)">
+      <span>📱</span> 평생 고정 (Tailscale)
+    </button>
+    <button class="tab-btn " onclick="openTab('cf', this)">
+      <span>🌐</span> 외부 공유 (Cloudflare)
+    </button>
+    <button class="tab-btn" onclick="openTab('lan', this)">
+      <span>🏢</span> 사내망 / 로컬
+    </button>
+  </div>
+
+  <!-- TAB 1: Tailscale -->
+  <div id="pane-ts" class="tab-pane active">
+    <div class="badge-group">
+      <span class="badge badge-green">⭐ 100% 영구 불변 주소</span>
+      <span class="badge badge-blue">LTE/5G 외부 접속</span>
+      <span class="badge badge-purple">기기 간 암호화</span>
+    </div>
+
+    <div class="qr-frame"><svg xmlns="http://www.w3.org/2000/svg" width="261" height="261" class="segno"><g transform="scale(9)"><path fill="#fff" d="M0 0h29v29h-29z"/><path class="qrline" stroke="#14171c" d="M2 2.5h7m1 0h2m3 0h1m2 0h1m1 0h7m-25 1h1m5 0h1m1 0h7m3 0h1m5 0h1m-25 1h1m1 0h3m1 0h1m1 0h3m2 0h2m3 0h1m1 0h3m1 0h1m-25 1h1m1 0h3m1 0h1m6 0h4m1 0h1m1 0h3m1 0h1m-25 1h1m1 0h3m1 0h1m1 0h1m1 0h2m6 0h1m1 0h3m1 0h1m-25 1h1m5 0h1m9 0h1m1 0h1m5 0h1m-25 1h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7m-15 1h4m1 0h1m-16 1h1m2 0h7m5 0h1m1 0h1m2 0h1m1 0h3m-25 1h2m2 0h1m5 0h2m3 0h3m2 0h4m-23 1h1m1 0h4m1 0h1m3 0h2m1 0h1m1 0h2m1 0h2m2 0h1m-25 1h2m3 0h1m4 0h2m2 0h2m1 0h2m2 0h4m-22 1h2m1 0h4m1 0h2m1 0h1m1 0h3m5 0h1m-25 1h1m1 0h3m3 0h1m3 0h1m2 0h1m3 0h2m2 0h1m-24 1h3m3 0h1m1 0h1m1 0h1m1 0h1m2 0h1m1 0h1m3 0h4m-25 1h1m1 0h1m1 0h2m3 0h1m2 0h1m1 0h1m1 0h1m3 0h1m1 0h1m1 0h1m-25 1h1m5 0h1m2 0h12m1 0h2m-16 1h1m2 0h6m3 0h1m2 0h1m-24 1h7m1 0h2m1 0h4m1 0h1m1 0h1m1 0h2m2 0h1m-25 1h1m5 0h1m1 0h3m1 0h3m1 0h1m3 0h1m2 0h2m-25 1h1m1 0h3m1 0h1m1 0h1m1 0h2m3 0h7m-22 1h1m1 0h3m1 0h1m1 0h1m2 0h2m3 0h1m1 0h2m1 0h1m1 0h2m-25 1h1m1 0h3m1 0h1m2 0h1m1 0h2m1 0h2m4 0h1m1 0h3m-25 1h1m5 0h1m2 0h1m1 0h2m2 0h1m1 0h4m1 0h3m-25 1h7m1 0h1m1 0h1m3 0h3m1 0h1m2 0h1m2 0h1"/></g></svg>
 </div>
-<div class="url" id="u">https://dairy-division-mating-shoppers.trycloudflare.com</div>
-<button onclick="navigator.clipboard.writeText(document.getElementById('u').textContent);this.textContent='복사됨'">주소 복사</button>
-<p class="warn">이 주소는 인터넷에 공개됩니다. 링크를 함부로 공유하지 말고, 다 쓰면 서버 창을 닫아 터널을 내리세요.</p>
-</div></body></html>
+    <div class="url-box">
+      <span class="url-text" id="url-ts">http://100.101.2.117:8088</span>
+      <button class="copy-btn" onclick="copyText('url-ts', this)">주소 복사</button>
+    </div>
+
+    <div class="guide-card">
+      <strong>📌 접속 주소가 바뀌지 않는 영구 해결책!</strong>
+      <ol>
+        <li>스마트폰(아이폰/갤럭시) 카메라로 위 QR 코드를 비춥니다.</li>
+        <li>사용자님의 <strong>iPhone 13 mini</strong>에 이미 Tailscale이 연결되어 있어 즉시 열립니다.</li>
+        <li><span class="tip-tag">강력추천</span> 접속 후 Safari 하단 공유 버튼 -> <strong>「홈 화면에 추가」</strong>를 누르면 바탕화면 앱으로 평생 탭 한 번에 실행됩니다!</li>
+      </ol>
+      <p style="margin-top:8px;font-size:12px;color:#58a6ff">MagicDNS 주소: <code>http://desktop-0sdpqa7.tailef545d.ts.net:8088</code></p>
+    </div>
+  </div>
+
+  <!-- TAB 2: Cloudflare -->
+  <div id="pane-cf" class="tab-pane ">
+    <div class="badge-group">
+      <span class="badge badge-yellow">🌐 인터넷 전체 공개용</span>
+      <span class="badge badge-blue">앱 설치 불필요</span>
+    </div>
+
+    <div class="qr-frame"><svg xmlns="http://www.w3.org/2000/svg" width="333" height="333" class="segno"><g transform="scale(9)"><path fill="#fff" d="M0 0h37v37h-37z"/><path class="qrline" stroke="#14171c" d="M2 2.5h7m1 0h2m1 0h1m1 0h1m4 0h3m1 0h2m2 0h7m-33 1h1m5 0h1m1 0h6m3 0h2m1 0h5m1 0h1m5 0h1m-33 1h1m1 0h3m1 0h1m2 0h2m1 0h4m3 0h1m2 0h1m1 0h1m1 0h1m1 0h3m1 0h1m-33 1h1m1 0h3m1 0h1m1 0h3m2 0h2m2 0h1m4 0h1m1 0h1m1 0h1m1 0h3m1 0h1m-33 1h1m1 0h3m1 0h1m2 0h1m1 0h1m1 0h4m2 0h1m2 0h1m3 0h1m1 0h3m1 0h1m-33 1h1m5 0h1m2 0h1m1 0h1m1 0h2m3 0h3m3 0h1m1 0h1m5 0h1m-33 1h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7m-25 1h3m1 0h1m2 0h1m1 0h1m5 0h1m-24 1h1m1 0h2m1 0h3m1 0h3m2 0h1m1 0h6m2 0h1m1 0h1m2 0h1m1 0h2m-32 1h2m1 0h1m3 0h7m1 0h1m1 0h4m1 0h1m2 0h2m1 0h2m1 0h1m-33 1h1m1 0h2m1 0h3m3 0h1m4 0h1m1 0h1m1 0h1m1 0h2m2 0h4m1 0h2m-33 1h4m1 0h1m7 0h3m3 0h1m2 0h1m3 0h2m1 0h1m1 0h2m-33 1h1m1 0h2m1 0h3m9 0h1m1 0h2m1 0h1m1 0h1m3 0h2m-26 1h1m2 0h11m1 0h1m2 0h1m1 0h1m2 0h1m1 0h1m1 0h1m-32 1h1m1 0h1m1 0h1m1 0h2m1 0h3m1 0h1m2 0h1m2 0h2m3 0h1m1 0h5m-27 1h2m1 0h1m1 0h2m1 0h1m3 0h1m2 0h8m2 0h2m-31 1h1m2 0h4m3 0h1m1 0h4m2 0h2m1 0h6m1 0h3m-31 1h2m2 0h2m3 0h3m3 0h1m1 0h1m2 0h1m2 0h4m1 0h2m2 0h1m-32 1h1m2 0h4m4 0h1m2 0h2m3 0h1m4 0h4m1 0h2m-29 1h2m6 0h2m1 0h1m2 0h1m5 0h4m1 0h1m2 0h2m-31 1h1m3 0h1m2 0h2m1 0h1m1 0h6m1 0h1m1 0h2m4 0h2m-31 1h1m3 0h2m1 0h1m1 0h1m7 0h7m2 0h1m5 0h1m-31 1h1m1 0h4m2 0h5m1 0h1m1 0h1m1 0h2m1 0h2m1 0h4m1 0h2m-32 1h1m5 0h1m3 0h2m1 0h1m4 0h2m1 0h1m1 0h1m1 0h1m1 0h2m1 0h2m-33 1h1m1 0h1m1 0h1m1 0h1m5 0h1m1 0h2m1 0h1m1 0h1m2 0h1m1 0h5m2 0h2m-25 1h2m5 0h3m1 0h1m1 0h4m3 0h2m1 0h1m-32 1h7m1 0h1m4 0h1m2 0h1m2 0h2m1 0h3m1 0h1m1 0h1m-29 1h1m5 0h1m1 0h1m1 0h3m2 0h2m3 0h5m3 0h3m-31 1h1m1 0h3m1 0h1m2 0h3m2 0h1m3 0h11m1 0h1m1 0h1m-33 1h1m1 0h3m1 0h1m1 0h2m1 0h1m2 0h2m2 0h1m1 0h1m1 0h3m2 0h1m4 0h1m-33 1h1m1 0h3m1 0h1m1 0h6m1 0h1m2 0h1m1 0h1m2 0h1m2 0h2m1 0h2m-31 1h1m5 0h1m2 0h3m2 0h2m1 0h4m1 0h4m1 0h2m3 0h1m-33 1h7m1 0h5m1 0h1m2 0h3m1 0h3m4 0h3"/></g></svg>
+</div>
+    <div class="url-box">
+      <span class="url-text" id="url-cf">https://computers-explanation-purchases-mesa.trycloudflare.com</span>
+      <button class="copy-btn" onclick="copyText('url-cf', this)">주소 복사</button>
+    </div>
+
+    <div class="guide-card">
+      <strong>ℹ️ Tailscale 미설치 동료/외부 기기 공유용</strong>
+      <p style="margin-top:4px">
+        - 누구나 브라우저만 있으면 바로 열 수 있는 공용 웹 링크입니다.<br>
+        - 무계정 무료 터널 특성상 서버를 재실행하면 주소가 새로 발급됩니다.<br>
+        - <strong>평생 고정 웹 도메인</strong>을 원하시면 Cloudflare Zero Trust 무료 계정의 터널 토큰을 <code>cloudflare_token.txt</code>에 등록하시면 됩니다.
+      </p>
+    </div>
+  </div>
+
+  <!-- TAB 3: LAN / Local -->
+  <div id="pane-lan" class="tab-pane">
+    <div class="badge-group">
+      <span class="badge badge-green">🏢 사내망 Wi-Fi</span>
+      <span class="badge badge-blue">PC 로컬</span>
+    </div>
+
+    <div class="qr-frame"><svg xmlns="http://www.w3.org/2000/svg" width="261" height="261" class="segno"><g transform="scale(9)"><path fill="#fff" d="M0 0h29v29h-29z"/><path class="qrline" stroke="#14171c" d="M2 2.5h7m1 0h4m2 0h1m3 0h7m-25 1h1m5 0h1m1 0h1m3 0h3m3 0h1m5 0h1m-25 1h1m1 0h3m1 0h1m2 0h3m1 0h1m1 0h1m2 0h1m1 0h3m1 0h1m-25 1h1m1 0h3m1 0h1m1 0h2m2 0h2m1 0h2m1 0h1m1 0h3m1 0h1m-25 1h1m1 0h3m1 0h1m2 0h1m3 0h1m1 0h1m2 0h1m1 0h3m1 0h1m-25 1h1m5 0h1m2 0h2m1 0h1m3 0h1m1 0h1m5 0h1m-25 1h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7m-17 1h2m2 0h1m1 0h3m-17 1h1m1 0h2m1 0h3m2 0h1m1 0h1m2 0h2m1 0h1m2 0h1m1 0h2m-25 1h2m1 0h3m2 0h1m1 0h1m1 0h3m2 0h1m5 0h1m-24 1h3m2 0h2m3 0h1m1 0h1m1 0h1m1 0h2m1 0h1m-20 1h1m1 0h1m5 0h1m1 0h2m1 0h1m2 0h1m1 0h1m2 0h2m-22 1h1m3 0h2m1 0h1m4 0h1m1 0h2m1 0h3m1 0h3m-22 1h1m4 0h2m1 0h1m3 0h1m1 0h2m1 0h1m3 0h1m-24 1h3m1 0h2m1 0h1m3 0h2m2 0h3m3 0h2m-24 1h1m1 0h2m1 0h1m1 0h1m2 0h1m1 0h1m3 0h1m4 0h1m2 0h1m-23 1h1m1 0h1m1 0h2m1 0h1m1 0h1m1 0h12m-17 1h2m2 0h1m1 0h1m1 0h1m3 0h1m3 0h1m-25 1h7m1 0h1m2 0h2m3 0h1m1 0h1m1 0h5m-25 1h1m5 0h1m1 0h2m2 0h1m1 0h1m1 0h1m3 0h1m3 0h1m-25 1h1m1 0h3m1 0h1m2 0h1m1 0h1m4 0h5m2 0h1m-24 1h1m1 0h3m1 0h1m1 0h3m1 0h4m2 0h3m1 0h3m-25 1h1m1 0h3m1 0h1m1 0h2m1 0h1m2 0h1m3 0h1m1 0h4m-24 1h1m5 0h1m2 0h1m3 0h1m1 0h1m4 0h1m1 0h1m-23 1h7m1 0h1m3 0h1m2 0h1m1 0h1m1 0h6"/></g></svg>
+</div>
+
+    <div class="url-box">
+      <span class="url-text" id="url-lan">http://172.30.1.62:8088</span>
+      <button class="copy-btn" onclick="copyText('url-lan', this)">주소 복사</button>
+    </div>
+
+    <div class="guide-card">
+      <strong>사내 Wi-Fi 공유기 접속</strong>
+      <p style="margin-top:4px">
+        - 같은 사무실/가정 내 같은 Wi-Fi 공유기에 연결된 기기에서 접속 가능합니다.<br>
+        - 이 PC 브라우저 접속: <a href="http://localhost:8088" target="_blank" style="color:#58a6ff">http://localhost:8088</a>
+      </p>
+    </div>
+  </div>
+
+  <p class="footer">NGII Map & Cad Studio • Powered by Antigravity</p>
+</div>
+
+<script>
+  function openTab(tabId, btn) {
+    document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    const pane = document.getElementById('pane-' + tabId);
+    if (pane) pane.classList.add('active');
+    if (btn) btn.classList.add('active');
+  }
+
+  function copyText(elemId, btn) {
+    const el = document.getElementById(elemId);
+    if (!el) return;
+    navigator.clipboard.writeText(el.textContent.trim()).then(() => {
+      const orig = btn.textContent;
+      btn.textContent = '복사됨 ✓';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = orig;
+        btn.classList.remove('copied');
+      }, 2000);
+    }).catch(() => {
+      alert('주소 복사 실패: ' + el.textContent);
+    });
+  }
+</script>
+</body>
+</html>

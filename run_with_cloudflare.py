@@ -102,61 +102,71 @@ def run_tunnel():
     else:
         cmd = [str(CLOUDFLARED_EXE), "tunnel", "--url", f"http://localhost:{port}"]
 
-    tunnel_proc = subprocess.Popen(
-        cmd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        bufsize=1,
-        encoding="utf-8",
-        errors="replace"
-    )
-
-    public_url = None
-
-    def read_tunnel_output():
-        nonlocal public_url
-        try:
-            for line in tunnel_proc.stdout:
-                match = re.search(r"https://[a-zA-Z0-9-]+\.trycloudflare\.com", line)
-                if match and not public_url:
-                    public_url = match.group(0)
-                    with open(URL_FILE, "w", encoding="utf-8") as f:
-                        f.write(public_url)
-                    
-                    print("\n" + "=" * 72)
-                    print("🚀 NGII Map Studio - Cloudflare 보안 웹 터널 활성화 완료!")
-                    print("=" * 72)
-                    print(f"  🏠 내 컴퓨터(로컬):     http://localhost:{port}")
-                    print(f"  🏢 사내망/LAN 접속:     http://{lan_ip}:{port}")
-                    print(f"  🌍 [외부 어디서나 접속]:  {public_url}")
-                    print("=" * 72)
-                    print("  ※ 공유기 포트포워딩 없이 외부 인터넷/스마트폰/노트북 어디서나 접속됩니다.")
-                    print("  ※ 종단 간 암호화(HTTPS)가 적용되어 도면 데이터가 안전하게 보호됩니다.")
-                    print(f"  ※ 주소 파일 저장됨: {URL_FILE}")
-                    print("  ※ 종료하려면 콘솔 창에서 Ctrl + C 를 누르세요.")
-                    print("=" * 72 + "\n")
-                    sys.stdout.flush()
-
-                    # Automatically open in browser
-                    threading.Thread(target=lambda: (time.sleep(1.0), webbrowser.open(public_url)), daemon=True).start()
-        except Exception:
-            pass
-
-    tunnel_thread = threading.Thread(target=read_tunnel_output, daemon=True)
-    tunnel_thread.start()
-
-    # Wait for tunnel URL or termination
+    # Persistent auto-reconnect loop for the tunnel
     try:
         while True:
-            time.sleep(1)
-            if tunnel_proc.poll() is not None:
-                print(f"Cloudflare 터널 프로세스가 종료되었습니다 (Code: {tunnel_proc.returncode})")
-                break
+            tunnel_proc = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+                encoding="utf-8",
+                errors="replace"
+            )
+
+            public_url = None
+
+            def read_tunnel_output():
+                nonlocal public_url
+                try:
+                    for line in tunnel_proc.stdout:
+                        match = re.search(r"https://[a-zA-Z0-9-]+\.trycloudflare\.com", line)
+                        if match and not public_url:
+                            public_url = match.group(0)
+                            with open(URL_FILE, "w", encoding="utf-8") as f:
+                                f.write(public_url)
+                            
+                            # Generate QR code
+                            try:
+                                import urllib.parse
+                                qr_api_url = f"https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={urllib.parse.quote(public_url)}"
+                                urllib.request.urlretrieve(qr_api_url, str(ROOT_DIR / "mobile_access_qr.png"))
+                            except Exception:
+                                pass
+
+                            print("\n" + "=" * 72)
+                            print("🚀 NGII Map Studio - Cloudflare 보안 웹 터널 활성화 완료!")
+                            print("=" * 72)
+                            print(f"  🏠 내 컴퓨터(로컬):     http://localhost:{port}")
+                            print(f"  🏢 사내망/LAN 접속:     http://{lan_ip}:{port}")
+                            print(f"  🌍 [외부 어디서나 접속]:  {public_url}")
+                            print("=" * 72)
+                            print("  ※ 공유기 포트포워딩 없이 외부 인터넷/스마트폰/노트북 어디서나 접속됩니다.")
+                            print("  ※ 종단 간 암호화(HTTPS)가 적용되어 도면 데이터가 안전하게 보호됩니다.")
+                            print(f"  ※ 주소 파일 저장됨: {URL_FILE}")
+                            print("  ※ 종료하려면 콘솔 창에서 Ctrl + C 를 누르세요.")
+                            print("=" * 72 + "\n")
+                            sys.stdout.flush()
+
+                except Exception:
+                    pass
+
+            tunnel_thread = threading.Thread(target=read_tunnel_output, daemon=True)
+            tunnel_thread.start()
+
+            # Monitor process
+            while True:
+                time.sleep(2)
+                if tunnel_proc.poll() is not None:
+                    print(f"\n[알림] Cloudflare 터널 연결이 갱신되었습니다 (Code: {tunnel_proc.returncode}). 2초 후 자동 재연결합니다...")
+                    time.sleep(2)
+                    break
+
     except KeyboardInterrupt:
         print("\n프로그램을 종료합니다...")
     finally:
-        if tunnel_proc.poll() is None:
+        if 'tunnel_proc' in locals() and tunnel_proc.poll() is None:
             tunnel_proc.terminate()
             try:
                 tunnel_proc.wait(timeout=3)

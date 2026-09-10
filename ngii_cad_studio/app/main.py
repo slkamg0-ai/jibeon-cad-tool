@@ -45,9 +45,49 @@ app.add_middleware(
     expose_headers=["Content-Disposition", "X-Suggested-Filename"],
 )
 
-# In-memory session store
-# session_id -> { "file_name": str, "crs": str, "layers": dict, "bounds_wgs84": list, "bounds_src": list }
-SESSIONS: Dict[str, Dict[str, Any]] = {}
+# Persistent session store (in-memory with /tmp fallback for serverless environments)
+class SessionStore(dict):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.tmp_dir = Path(tempfile.gettempdir()) / "ngii_sessions"
+        self.tmp_dir.mkdir(parents=True, exist_ok=True)
+
+    def __getitem__(self, key):
+        if super().__contains__(key):
+            return super().__getitem__(key)
+        sess_file = self.tmp_dir / f"{key}.json"
+        if sess_file.exists():
+            try:
+                import json
+                data = json.loads(sess_file.read_text(encoding="utf-8"))
+                super().__setitem__(key, data)
+                return data
+            except Exception:
+                pass
+        raise KeyError(key)
+
+    def __setitem__(self, key, value):
+        super().__setitem__(key, value)
+        try:
+            import json
+            sess_file = self.tmp_dir / f"{key}.json"
+            sess_file.write_text(json.dumps(value, ensure_ascii=False), encoding="utf-8")
+        except Exception:
+            pass
+
+    def get(self, key, default=None):
+        try:
+            return self[key]
+        except KeyError:
+            return default
+
+    def __contains__(self, key):
+        if super().__contains__(key):
+            return True
+        sess_file = self.tmp_dir / f"{key}.json"
+        return sess_file.exists()
+
+SESSIONS: SessionStore = SessionStore()
 
 STATIC_DIR = Path(__file__).parent / "static"
 STATIC_DIR.mkdir(parents=True, exist_ok=True)

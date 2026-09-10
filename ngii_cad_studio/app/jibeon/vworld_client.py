@@ -13,6 +13,12 @@ CADASTRAL_LAYER = "LP_PA_CBND_BUBUN"
 
 DEFAULT_API_KEY = "B2C87AF7-CF6E-310D-8405-EDDC5A5D6B91"
 
+DEFAULT_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+    "Referer": "https://api.vworld.kr/",
+    "Accept": "application/json, text/plain, */*",
+}
+
 class VWorldClient:
     def __init__(self, api_key: Optional[str] = None):
         self.api_key = api_key or os.environ.get("VWORLD_API_KEY") or DEFAULT_API_KEY
@@ -28,8 +34,9 @@ class VWorldClient:
             "format": "json",
             "crs": "EPSG:5186",
             "key": self.api_key,
+            "domain": os.environ.get("VWORLD_DOMAIN", "jibeon-cad-tool.vercel.app"),
         }
-        res = requests.get(VWORLD_SEARCH_URL, params=params, timeout=10)
+        res = requests.get(VWORLD_SEARCH_URL, params=params, headers=DEFAULT_HEADERS, timeout=12)
         res.raise_for_status()
         data = res.json()
         
@@ -37,7 +44,7 @@ class VWorldClient:
         if not items:
             # Try type="both" or type="place"
             params["type"] = "both"
-            res2 = requests.get(VWORLD_SEARCH_URL, params=params, timeout=10)
+            res2 = requests.get(VWORLD_SEARCH_URL, params=params, headers=DEFAULT_HEADERS, timeout=12)
             if res2.ok:
                 items = res2.json().get("response", {}).get("result", {}).get("items", [])
                 
@@ -87,10 +94,11 @@ class VWorldClient:
                 "crs": crs,
                 "format": "json",
                 "size": "1000",
-                "page": str(page)
+                "page": str(page),
+                "domain": os.environ.get("VWORLD_DOMAIN", "jibeon-cad-tool.vercel.app"),
             }
             try:
-                res = requests.get(VWORLD_DATA_URL, params=params, timeout=15)
+                res = requests.get(VWORLD_DATA_URL, params=params, headers=DEFAULT_HEADERS, timeout=15)
                 res.raise_for_status()
                 data = res.json()
             except Exception as e:

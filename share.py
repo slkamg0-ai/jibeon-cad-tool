@@ -26,8 +26,14 @@ import re
 import shutil
 import socket
 import subprocess
+import sys
 import threading
 import time
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", line_buffering=True)
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", line_buffering=True)
 import webbrowser
 from pathlib import Path
 
@@ -251,6 +257,8 @@ def build_hub_html(
     lan_url: str,
     local_url: str,
 ) -> str:
+    vercel_url = "https://jibeon-cad-tool.vercel.app"
+    vercel_qr = qr_svg(vercel_url)
     ts_qr = qr_svg(tailscale_url) if tailscale_url else ""
     cf_qr = qr_svg(cloudflare_url) if cloudflare_url else ""
     lan_qr = qr_svg(lan_url)
@@ -453,19 +461,47 @@ def build_hub_html(
   <p class="subtitle">스마트폰 카메라로 QR 코드를 비추면 즉시 열립니다.</p>
 
   <div class="tabs">
-    <button class="tab-btn {'active' if active_tab == 'ts' else ''}" onclick="openTab('ts', this)">
-      <span>📱</span> 평생 고정 (Tailscale)
+    <button class="tab-btn active" onclick="openTab('vercel', this)">
+      <span>▲</span> Vercel 영구웹
     </button>
-    <button class="tab-btn {'active' if active_tab == 'cf' else ''}" onclick="openTab('cf', this)">
-      <span>🌐</span> 외부 공유 (Cloudflare)
+    <button class="tab-btn" onclick="openTab('ts', this)">
+      <span>📱</span> Tailscale
+    </button>
+    <button class="tab-btn" onclick="openTab('cf', this)">
+      <span>🌐</span> Cloudflare
     </button>
     <button class="tab-btn" onclick="openTab('lan', this)">
-      <span>🏢</span> 사내망 / 로컬
+      <span>🏢</span> 사내/로컬
     </button>
   </div>
 
+  <!-- TAB 0: Vercel -->
+  <div id="pane-vercel" class="tab-pane active">
+    <div class="badge-group">
+      <span class="badge badge-green">⭐ Vercel 공식 영구 웹</span>
+      <span class="badge badge-blue">PC 꺼져도 24시간 접속</span>
+      <span class="badge badge-purple">HTTPS 보안</span>
+    </div>
+
+    <div class="qr-frame">{vercel_qr}</div>
+
+    <div class="url-box">
+      <span class="url-text" id="url-vercel">{vercel_url}</span>
+      <button class="copy-btn" onclick="copyText('url-vercel', this)">주소 복사</button>
+    </div>
+
+    <div class="guide-card">
+      <strong>🚀 Vercel 클라우드 영구 주소!</strong>
+      <ol>
+        <li>스마트폰 카메라로 위 QR을 비추거나 주소로 접속합니다.</li>
+        <li><strong>PC를 켜둘 필요 없이</strong> 24시간 언제 어디서나 바로 열립니다.</li>
+        <li><span class="tip-tag">강력추천</span> Safari/Chrome 메뉴에서 <strong>「홈 화면에 추가」</strong>를 누르면 스마트폰 앱처럼 평생 쓸 수 있습니다!</li>
+      </ol>
+    </div>
+  </div>
+
   <!-- TAB 1: Tailscale -->
-  <div id="pane-ts" class="tab-pane {'active' if active_tab == 'ts' else ''}">
+  <div id="pane-ts" class="tab-pane">
     <div class="badge-group">
       <span class="badge badge-green">⭐ 100% 영구 불변 주소</span>
       <span class="badge badge-blue">LTE/5G 외부 접속</span>
@@ -575,8 +611,13 @@ def announce_hub(
     lan_url = f"http://{lan_ip}:{port}"
     local_url = f"http://localhost:{port}"
 
+    vercel_url = "https://jibeon-cad-tool.vercel.app"
+    save_qr_png(vercel_url, project_dir / "mobile_access_qr_vercel.png")
+    (project_dir / "vercel_url.txt").write_text(vercel_url, encoding="utf-8")
     print("\n" + "=" * 70)
     print("  [NGII Map Studio] - 접속 주소 안내")
+    print("\n  [★] [가장 추천] Vercel 클라우드 영구 주소 (24시간 접속 가능):")
+    print(f"      -> {vercel_url}")
     print("=" * 70)
 
     if ts_url:

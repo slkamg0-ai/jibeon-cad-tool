@@ -170,19 +170,48 @@
   <p class="subtitle">스마트폰 카메라로 QR 코드를 비추면 즉시 열립니다.</p>
 
   <div class="tabs">
-    <button class="tab-btn active" onclick="openTab('ts', this)">
-      <span>📱</span> 평생 고정 (Tailscale)
+    <button class="tab-btn active" onclick="openTab('vercel', this)">
+      <span>▲</span> Vercel 영구웹
     </button>
-    <button class="tab-btn " onclick="openTab('cf', this)">
-      <span>🌐</span> 외부 공유 (Cloudflare)
+    <button class="tab-btn" onclick="openTab('ts', this)">
+      <span>📱</span> Tailscale
+    </button>
+    <button class="tab-btn" onclick="openTab('cf', this)">
+      <span>🌐</span> Cloudflare
     </button>
     <button class="tab-btn" onclick="openTab('lan', this)">
-      <span>🏢</span> 사내망 / 로컬
+      <span>🏢</span> 사내/로컬
     </button>
   </div>
 
+  <!-- TAB 0: Vercel -->
+  <div id="pane-vercel" class="tab-pane active">
+    <div class="badge-group">
+      <span class="badge badge-green">⭐ Vercel 공식 영구 웹</span>
+      <span class="badge badge-blue">PC 꺼져도 24시간 접속</span>
+      <span class="badge badge-purple">HTTPS 보안</span>
+    </div>
+
+    <div class="qr-frame"><svg xmlns="http://www.w3.org/2000/svg" width="297" height="297" class="segno"><g transform="scale(9)"><path fill="#fff" d="M0 0h33v33h-33z"/><path class="qrline" stroke="#14171c" d="M2 2.5h7m5 0h1m1 0h1m2 0h3m2 0h7m-29 1h1m5 0h1m4 0h2m3 0h3m1 0h1m1 0h1m5 0h1m-29 1h1m1 0h3m1 0h1m3 0h3m1 0h2m1 0h4m1 0h1m1 0h3m1 0h1m-29 1h1m1 0h3m1 0h1m5 0h2m8 0h1m1 0h3m1 0h1m-29 1h1m1 0h3m1 0h1m10 0h2m3 0h1m1 0h3m1 0h1m-29 1h1m5 0h1m1 0h2m5 0h1m1 0h3m2 0h1m5 0h1m-29 1h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7m-20 1h3m1 0h1m1 0h3m1 0h2m-21 1h1m2 0h1m1 0h2m1 0h1m3 0h1m1 0h1m1 0h1m2 0h1m1 0h1m1 0h1m-19 1h1m1 0h1m1 0h5m1 0h1m1 0h2m1 0h3m2 0h1m2 0h1m-26 1h4m2 0h2m2 0h2m2 0h1m1 0h9m-28 1h3m1 0h1m2 0h2m4 0h1m1 0h1m3 0h1m2 0h2m2 0h2m-28 1h4m1 0h2m1 0h1m1 0h1m3 0h1m2 0h1m3 0h2m2 0h1m1 0h2m-29 1h6m5 0h1m1 0h2m2 0h1m1 0h3m-22 1h2m1 0h2m1 0h2m2 0h1m1 0h3m1 0h2m2 0h2m1 0h1m1 0h4m-28 1h4m4 0h1m1 0h1m3 0h1m1 0h7m1 0h1m1 0h1m-27 1h1m2 0h1m1 0h4m1 0h1m1 0h1m2 0h2m2 0h1m6 0h1m-26 1h1m1 0h2m1 0h1m2 0h2m1 0h2m1 0h1m1 0h1m1 0h4m1 0h1m2 0h1m-29 1h1m5 0h2m2 0h2m2 0h1m2 0h2m1 0h2m1 0h2m2 0h2m-27 1h1m1 0h2m1 0h1m1 0h1m2 0h1m1 0h4m2 0h1m1 0h3m2 0h2m-29 1h1m4 0h2m1 0h1m2 0h2m3 0h1m3 0h5m1 0h1m-19 1h1m3 0h1m1 0h1m1 0h2m1 0h2m3 0h1m1 0h3m-29 1h7m4 0h2m4 0h2m1 0h1m1 0h1m1 0h1m2 0h1m-28 1h1m5 0h1m1 0h2m2 0h1m1 0h1m1 0h1m1 0h1m1 0h1m3 0h5m-29 1h1m1 0h3m1 0h1m2 0h1m1 0h1m3 0h3m2 0h5m3 0h1m-29 1h1m1 0h3m1 0h1m1 0h3m5 0h2m1 0h1m2 0h6m-28 1h1m1 0h3m1 0h1m2 0h1m1 0h3m2 0h2m6 0h3m1 0h1m-29 1h1m5 0h1m2 0h2m2 0h9m1 0h2m2 0h1m-28 1h7m1 0h3m4 0h1m1 0h1m2 0h3m2 0h1m1 0h1"/></g></svg>
+</div>
+
+    <div class="url-box">
+      <span class="url-text" id="url-vercel">https://jibeon-cad-tool.vercel.app</span>
+      <button class="copy-btn" onclick="copyText('url-vercel', this)">주소 복사</button>
+    </div>
+
+    <div class="guide-card">
+      <strong>🚀 Vercel 클라우드 영구 주소!</strong>
+      <ol>
+        <li>스마트폰 카메라로 위 QR을 비추거나 주소로 접속합니다.</li>
+        <li><strong>PC를 켜둘 필요 없이</strong> 24시간 언제 어디서나 바로 열립니다.</li>
+        <li><span class="tip-tag">강력추천</span> Safari/Chrome 메뉴에서 <strong>「홈 화면에 추가」</strong>를 누르면 스마트폰 앱처럼 평생 쓸 수 있습니다!</li>
+      </ol>
+    </div>
+  </div>
+
   <!-- TAB 1: Tailscale -->
-  <div id="pane-ts" class="tab-pane active">
+  <div id="pane-ts" class="tab-pane">
     <div class="badge-group">
       <span class="badge badge-green">⭐ 100% 영구 불변 주소</span>
       <span class="badge badge-blue">LTE/5G 외부 접속</span>
@@ -214,10 +243,10 @@
       <span class="badge badge-blue">앱 설치 불필요</span>
     </div>
 
-    <div class="qr-frame"><svg xmlns="http://www.w3.org/2000/svg" width="333" height="333" class="segno"><g transform="scale(9)"><path fill="#fff" d="M0 0h37v37h-37z"/><path class="qrline" stroke="#14171c" d="M2 2.5h7m1 0h2m1 0h1m1 0h1m4 0h3m1 0h2m2 0h7m-33 1h1m5 0h1m1 0h6m3 0h2m1 0h5m1 0h1m5 0h1m-33 1h1m1 0h3m1 0h1m2 0h2m1 0h4m3 0h1m2 0h1m1 0h1m1 0h1m1 0h3m1 0h1m-33 1h1m1 0h3m1 0h1m1 0h3m2 0h2m2 0h1m4 0h1m1 0h1m1 0h1m1 0h3m1 0h1m-33 1h1m1 0h3m1 0h1m2 0h1m1 0h1m1 0h4m2 0h1m2 0h1m3 0h1m1 0h3m1 0h1m-33 1h1m5 0h1m2 0h1m1 0h1m1 0h2m3 0h3m3 0h1m1 0h1m5 0h1m-33 1h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7m-25 1h3m1 0h1m2 0h1m1 0h1m5 0h1m-24 1h1m1 0h2m1 0h3m1 0h3m2 0h1m1 0h6m2 0h1m1 0h1m2 0h1m1 0h2m-32 1h2m1 0h1m3 0h7m1 0h1m1 0h4m1 0h1m2 0h2m1 0h2m1 0h1m-33 1h1m1 0h2m1 0h3m3 0h1m4 0h1m1 0h1m1 0h1m1 0h2m2 0h4m1 0h2m-33 1h4m1 0h1m7 0h3m3 0h1m2 0h1m3 0h2m1 0h1m1 0h2m-33 1h1m1 0h2m1 0h3m9 0h1m1 0h2m1 0h1m1 0h1m3 0h2m-26 1h1m2 0h11m1 0h1m2 0h1m1 0h1m2 0h1m1 0h1m1 0h1m-32 1h1m1 0h1m1 0h1m1 0h2m1 0h3m1 0h1m2 0h1m2 0h2m3 0h1m1 0h5m-27 1h2m1 0h1m1 0h2m1 0h1m3 0h1m2 0h8m2 0h2m-31 1h1m2 0h4m3 0h1m1 0h4m2 0h2m1 0h6m1 0h3m-31 1h2m2 0h2m3 0h3m3 0h1m1 0h1m2 0h1m2 0h4m1 0h2m2 0h1m-32 1h1m2 0h4m4 0h1m2 0h2m3 0h1m4 0h4m1 0h2m-29 1h2m6 0h2m1 0h1m2 0h1m5 0h4m1 0h1m2 0h2m-31 1h1m3 0h1m2 0h2m1 0h1m1 0h6m1 0h1m1 0h2m4 0h2m-31 1h1m3 0h2m1 0h1m1 0h1m7 0h7m2 0h1m5 0h1m-31 1h1m1 0h4m2 0h5m1 0h1m1 0h1m1 0h2m1 0h2m1 0h4m1 0h2m-32 1h1m5 0h1m3 0h2m1 0h1m4 0h2m1 0h1m1 0h1m1 0h1m1 0h2m1 0h2m-33 1h1m1 0h1m1 0h1m1 0h1m5 0h1m1 0h2m1 0h1m1 0h1m2 0h1m1 0h5m2 0h2m-25 1h2m5 0h3m1 0h1m1 0h4m3 0h2m1 0h1m-32 1h7m1 0h1m4 0h1m2 0h1m2 0h2m1 0h3m1 0h1m1 0h1m-29 1h1m5 0h1m1 0h1m1 0h3m2 0h2m3 0h5m3 0h3m-31 1h1m1 0h3m1 0h1m2 0h3m2 0h1m3 0h11m1 0h1m1 0h1m-33 1h1m1 0h3m1 0h1m1 0h2m1 0h1m2 0h2m2 0h1m1 0h1m1 0h3m2 0h1m4 0h1m-33 1h1m1 0h3m1 0h1m1 0h6m1 0h1m2 0h1m1 0h1m2 0h1m2 0h2m1 0h2m-31 1h1m5 0h1m2 0h3m2 0h2m1 0h4m1 0h4m1 0h2m3 0h1m-33 1h7m1 0h5m1 0h1m2 0h3m1 0h3m4 0h3"/></g></svg>
+    <div class="qr-frame"><svg xmlns="http://www.w3.org/2000/svg" width="297" height="297" class="segno"><g transform="scale(9)"><path fill="#fff" d="M0 0h33v33h-33z"/><path class="qrline" stroke="#14171c" d="M2 2.5h7m5 0h1m1 0h1m2 0h3m2 0h7m-29 1h1m5 0h1m4 0h2m3 0h3m1 0h1m1 0h1m5 0h1m-29 1h1m1 0h3m1 0h1m3 0h3m1 0h2m1 0h4m1 0h1m1 0h3m1 0h1m-29 1h1m1 0h3m1 0h1m5 0h2m8 0h1m1 0h3m1 0h1m-29 1h1m1 0h3m1 0h1m10 0h2m3 0h1m1 0h3m1 0h1m-29 1h1m5 0h1m1 0h2m5 0h1m1 0h3m2 0h1m5 0h1m-29 1h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7m-20 1h3m1 0h1m1 0h3m1 0h2m-21 1h1m2 0h1m1 0h2m1 0h1m3 0h1m1 0h1m1 0h1m2 0h1m1 0h1m1 0h1m-19 1h1m1 0h1m1 0h5m1 0h1m1 0h2m1 0h3m2 0h1m2 0h1m-26 1h4m2 0h2m2 0h2m2 0h1m1 0h9m-28 1h3m1 0h1m2 0h2m4 0h1m1 0h1m3 0h1m2 0h2m2 0h2m-28 1h4m1 0h2m1 0h1m1 0h1m3 0h1m2 0h1m3 0h2m2 0h1m1 0h2m-29 1h6m5 0h1m1 0h2m2 0h1m1 0h3m-22 1h2m1 0h2m1 0h2m2 0h1m1 0h3m1 0h2m2 0h2m1 0h1m1 0h4m-28 1h4m4 0h1m1 0h1m3 0h1m1 0h7m1 0h1m1 0h1m-27 1h1m2 0h1m1 0h4m1 0h1m1 0h1m2 0h2m2 0h1m6 0h1m-26 1h1m1 0h2m1 0h1m2 0h2m1 0h2m1 0h1m1 0h1m1 0h4m1 0h1m2 0h1m-29 1h1m5 0h2m2 0h2m2 0h1m2 0h2m1 0h2m1 0h2m2 0h2m-27 1h1m1 0h2m1 0h1m1 0h1m2 0h1m1 0h4m2 0h1m1 0h3m2 0h2m-29 1h1m4 0h2m1 0h1m2 0h2m3 0h1m3 0h5m1 0h1m-19 1h1m3 0h1m1 0h1m1 0h2m1 0h2m3 0h1m1 0h3m-29 1h7m4 0h2m4 0h2m1 0h1m1 0h1m1 0h1m2 0h1m-28 1h1m5 0h1m1 0h2m2 0h1m1 0h1m1 0h1m1 0h1m1 0h1m3 0h5m-29 1h1m1 0h3m1 0h1m2 0h1m1 0h1m3 0h3m2 0h5m3 0h1m-29 1h1m1 0h3m1 0h1m1 0h3m5 0h2m1 0h1m2 0h6m-28 1h1m1 0h3m1 0h1m2 0h1m1 0h3m2 0h2m6 0h3m1 0h1m-29 1h1m5 0h1m2 0h2m2 0h9m1 0h2m2 0h1m-28 1h7m1 0h3m4 0h1m1 0h1m2 0h3m2 0h1m1 0h1"/></g></svg>
 </div>
     <div class="url-box">
-      <span class="url-text" id="url-cf">https://computers-explanation-purchases-mesa.trycloudflare.com</span>
+      <span class="url-text" id="url-cf">https://jibeon-cad-tool.vercel.app</span>
       <button class="copy-btn" onclick="copyText('url-cf', this)">주소 복사</button>
     </div>
 

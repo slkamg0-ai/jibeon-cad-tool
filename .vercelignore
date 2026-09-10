@@ -1,0 +1,15 @@
+.git
+.gemini
+__pycache__
+*.pyc
+*.pyd
+*.log
+jibeon_cad_tool/dist
+jibeon_cad_tool/dist_onedir
+jibeon_cad_tool/build
+jibeon_cad_tool/output*
+cloudflared.exe
+*.dxf
+*.dwg
+*.lnk
+scratch*

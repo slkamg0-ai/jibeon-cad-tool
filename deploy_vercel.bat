@@ -1,17 +1,16 @@
-﻿@echo off
-chcp 65001 > nul
-echo ===============================================================
-echo  NGII Map Studio - Vercel 클라우드 영구 배포
-echo  (https://*.vercel.app 주소로 전 세계 어디서나 접속)
-echo ===============================================================
+@echo off
 cd /d "%~dp0"
+echo ===============================================================
+echo  NGII Map Studio - Vercel production deploy
+echo  (permanent https://*.vercel.app address)
+echo ===============================================================
 echo.
-echo [1/2] 정적 웹 에셋(public/) 동기화 중...
+echo [1/2] Copying static assets to public\ ...
 xcopy /E /I /Y "ngii_cad_studio\app\static\*" "public\" > nul
-echo [2/2] Vercel 프로덕션 배포 진행 중...
-npx.cmd vercel --prod --yes
+echo [2/2] Deploying to Vercel ...
+call npx.cmd vercel --prod --yes
 echo.
 echo ===============================================================
-echo  배포가 완료되었습니다!
+echo  Deploy finished.
 echo ===============================================================
 pause

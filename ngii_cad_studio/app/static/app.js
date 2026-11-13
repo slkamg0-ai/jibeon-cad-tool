@@ -584,7 +584,7 @@ async function fetchAndRenderPreview() {
             className: 'jibeon-label-tag',
             html: showLabelBox
               ? `<div class="bg-slate-900/95 text-slate-200 border border-slate-700 px-1.5 py-0.2 rounded text-[11px] font-medium shadow-md whitespace-nowrap transform -translate-x-1/2 -translate-y-1/2 ${p.IS_TARGET === 'Y' ? 'text-red-400 border-red-500/80 font-bold' : ''}">${p.text}</div>`
-              : `<div style="transform:translate(-50%,-50%);white-space:nowrap;font-size:12px;font-weight:700;color:${p.IS_TARGET === 'Y' ? '#FCA5A5' : '#FFFFFF'};text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000,0 0 4px #000;pointer-events:none">${p.text}</div>``,
+              : `<div style="transform:translate(-50%,-50%);white-space:nowrap;font-size:12px;font-weight:700;color:${p.IS_TARGET === 'Y' ? '#FCA5A5' : '#FFFFFF'};text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000,0 0 4px #000;pointer-events:none">${p.text}</div>`,
             iconSize: [0, 0]
           });
           return L.marker(latlng, { icon: divIcon });

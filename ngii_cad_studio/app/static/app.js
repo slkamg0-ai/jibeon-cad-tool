@@ -477,6 +477,7 @@ async function fetchAndRenderPreview() {
 
     if (!res.ok) throw new Error("미리보기 데이터를 불러오지 못했습니다.");
     const geojson = await res.json();
+    window.lastPreviewGeojson = geojson;
 
     vectorLayerGroup.clearLayers();
     labelLayerGroup.clearLayers();
@@ -1550,3 +1551,152 @@ window.addEventListener("DOMContentLoaded", () => {
   fetchPresets();
   renderCustomPresets();
 });
+
+
+// ===== 지적 생성구역 + 위성영상 PNG 이미지 저장 =====
+(function () {
+  const btn = document.getElementById("btn-export-sat-image");
+  if (!btn) return;
+
+  const TILE = 256;
+  const lonToX = (lon, z) => ((lon + 180) / 360) * TILE * Math.pow(2, z);
+  const latToY = (lat, z) => {
+    const r = lat * Math.PI / 180;
+    return ((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * TILE * Math.pow(2, z);
+  };
+
+  function eachCoord(geom, fn) {
+    if (!geom) return;
+    const walk = (c) => {
+      if (typeof c[0] === "number") fn(c[0], c[1]);
+      else c.forEach(walk);
+    };
+    walk(geom.coordinates || []);
+  }
+
+  function loadTile(z, x, y) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => resolve(img);
+      img.onerror = () => resolve(null);
+      img.src = `/api/tile/sat/${z}/${x}/${y}`;
+    });
+  }
+
+  async function exportSatImage() {
+    const gj = window.lastPreviewGeojson;
+    const feats = ((gj && gj.features) || []).filter(f =>
+      f.properties && ["CADASTRAL", "HIGHLIGHT", "LABEL"].includes(f.properties.layer));
+    const parcels = feats.filter(f => f.properties.layer !== "LABEL");
+    if (parcels.length === 0) {
+      alert("먼저 지번을 검색해서 지적도를 생성해 주세요.");
+      return;
+    }
+
+    // 지적 구역 경계 계산
+    let minLon = 999, maxLon = -999, minLat = 999, maxLat = -999;
+    parcels.forEach(f => eachCoord(f.geometry, (lon, lat) => {
+      minLon = Math.min(minLon, lon); maxLon = Math.max(maxLon, lon);
+      minLat = Math.min(minLat, lat); maxLat = Math.max(maxLat, lat);
+    }));
+
+    // 가로 2400px 이하에서 가장 높은 줌 선택
+    let z = 19;
+    while (z > 12 && (lonToX(maxLon, z) - lonToX(minLon, z)) > 2400) z--;
+
+    const x0 = lonToX(minLon, z), x1 = lonToX(maxLon, z);
+    const y0 = latToY(maxLat, z), y1 = latToY(minLat, z);
+    const W = Math.ceil(x1 - x0), H = Math.ceil(y1 - y0);
+
+    const canvas = document.createElement("canvas");
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#222"; ctx.fillRect(0, 0, W, H);
+
+    if (loadingOverlay) { loadingText.textContent = "위성영상 불러오는 중..."; loadingOverlay.classList.remove("hidden"); }
+    try {
+      // 위성 타일 합성
+      const tx0 = Math.floor(x0 / TILE), tx1 = Math.floor(x1 / TILE);
+      const ty0 = Math.floor(y0 / TILE), ty1 = Math.floor(y1 / TILE);
+      const jobs = [];
+      for (let tx = tx0; tx <= tx1; tx++) {
+        for (let ty = ty0; ty <= ty1; ty++) {
+          jobs.push(loadTile(z, tx, ty).then(img => {
+            if (img) ctx.drawImage(img, tx * TILE - x0, ty * TILE - y0, TILE, TILE);
+          }));
+        }
+      }
+      await Promise.all(jobs);
+
+      const px = (lon) => lonToX(lon, z) - x0;
+      const py = (lat) => latToY(lat, z) - y0;
+
+      // 필지 경계선
+      const drawRing = (ring) => {
+        ring.forEach((c, i) => i ? ctx.lineTo(px(c[0]), py(c[1])) : ctx.moveTo(px(c[0]), py(c[1])));
+      };
+      const order = parcels.sort((a, b) =>
+        (a.properties.layer === "HIGHLIGHT") - (b.properties.layer === "HIGHLIGHT"));
+      order.forEach(f => {
+        const hl = f.properties.layer === "HIGHLIGHT";
+        const g = f.geometry;
+        if (!g) return;
+        const polys = g.type === "Polygon" ? [g.coordinates]
+          : g.type === "MultiPolygon" ? g.coordinates : [];
+        ctx.lineJoin = "round";
+        ctx.lineWidth = hl ? 3.5 : 1.3;
+        ctx.strokeStyle = hl ? "#EF4444" : "rgba(226,232,240,0.9)";
+        ctx.fillStyle = hl ? "rgba(239,68,68,0.35)" : "rgba(0,0,0,0)";
+        polys.forEach(poly => {
+          ctx.beginPath();
+          poly.forEach(drawRing);
+          ctx.fill(); ctx.stroke();
+        });
+        if (g.type === "LineString" || g.type === "MultiLineString") {
+          const lines = g.type === "LineString" ? [g.coordinates] : g.coordinates;
+          lines.forEach(l => { ctx.beginPath(); drawRing(l); ctx.stroke(); });
+        }
+      });
+
+      // 지번 라벨
+      const fs = Math.max(12, Math.min(22, Math.round(W / 90)));
+      ctx.font = `600 ${fs}px "Malgun Gothic", "Apple SD Gothic Neo", sans-serif`;
+      ctx.textBaseline = "middle"; ctx.textAlign = "center";
+      feats.filter(f => f.properties.layer === "LABEL" && f.properties.text).forEach(f => {
+        const [lon, lat] = f.geometry.coordinates;
+        const x = px(lon), y = py(lat);
+        if (x < 0 || y < 0 || x > W || y > H) return;
+        const t = String(f.properties.text);
+        const target = f.properties.IS_TARGET === "Y";
+        const w = ctx.measureText(t).width + 12, h = fs + 8;
+        ctx.fillStyle = "rgba(15,23,42,0.88)";
+        ctx.fillRect(x - w / 2, y - h / 2, w, h);
+        if (target) { ctx.strokeStyle = "#EF4444"; ctx.lineWidth = 1.5; ctx.strokeRect(x - w / 2, y - h / 2, w, h); }
+        ctx.fillStyle = target ? "#F87171" : "#E2E8F0";
+        ctx.fillText(t, x, y);
+      });
+
+      // 출처 표기
+      ctx.font = `${Math.max(10, fs - 3)}px sans-serif`;
+      ctx.textAlign = "right"; ctx.textBaseline = "bottom";
+      ctx.fillStyle = "rgba(255,255,255,0.85)";
+      ctx.fillText("위성영상: VWorld / 지적: VWorld 연속지적도", W - 6, H - 4);
+
+      canvas.toBlob((blob) => {
+        if (!blob) { alert("이미지 생성에 실패했습니다."); return; }
+        const addr = (typeof jibeonAddressInput !== "undefined" && jibeonAddressInput.value.trim()) || "지적";
+        const name = `지적위성_${addr.replace(/[\\/:*?"<>|\s]+/g, "_")}_${new Date().toISOString().slice(0, 10)}.png`;
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = name;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+      }, "image/png");
+    } finally {
+      if (loadingOverlay) loadingOverlay.classList.add("hidden");
+    }
+  }
+
+  btn.addEventListener("click", () => exportSatImage().catch(e => alert("이미지 저장 오류: " + e.message)));
+})();

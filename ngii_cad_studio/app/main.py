@@ -808,5 +808,25 @@ def export_custom_map(req: ExportRequest):
         raise HTTPException(status_code=400, detail=f"지원하지 않는 포맷: {fmt}")
 
 # Mount static web UI (support both /static/... and root /...)
+
+@app.get("/api/tile/sat/{z}/{x}/{y}")
+def proxy_satellite_tile(z: int, x: int, y: int):
+    """VWorld 위성 타일 프록시 (브라우저 캔버스 CORS 오염 방지용)"""
+    import requests
+    from fastapi.responses import Response
+    if not (0 <= z <= 19):
+        raise HTTPException(status_code=400, detail="invalid zoom")
+    try:
+        r = requests.get(
+            f"https://xdworld.vworld.kr/2d/Satellite/service/{z}/{x}/{y}.jpeg",
+            timeout=10,
+        )
+        if r.status_code != 200:
+            raise HTTPException(status_code=502, detail="tile fetch failed")
+        return Response(content=r.content, media_type="image/jpeg",
+                        headers={"Cache-Control": "public, max-age=86400"})
+    except requests.RequestException:
+        raise HTTPException(status_code=502, detail="tile fetch failed")
+
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static_files")
 app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="static")

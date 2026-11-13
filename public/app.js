@@ -1614,10 +1614,11 @@ window.addEventListener("DOMContentLoaded", () => {
 });
 
 
-// ===== 지적 생성구역 + 위성영상 PNG 이미지 저장 =====
+// ===== 지적 생성구역 + 위성영상 PNG 이미지 / A4 보고서(PDF) =====
 (function () {
-  const btn = document.getElementById("btn-export-sat-image");
-  if (!btn) return;
+  const btnImg = document.getElementById("btn-export-sat-image");
+  const btnRpt = document.getElementById("btn-export-sat-report");
+  if (!btnImg && !btnRpt) return;
 
   const TILE = 256;
   const lonToX = (lon, z) => ((lon + 180) / 360) * TILE * Math.pow(2, z);
@@ -1625,16 +1626,14 @@ window.addEventListener("DOMContentLoaded", () => {
     const r = lat * Math.PI / 180;
     return ((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * TILE * Math.pow(2, z);
   };
+  const FONT = '"Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",sans-serif';
+  const JIMOK = {"전":"전","답":"답","과":"과수원","목":"목장용지","임":"임야","광":"광천지","염":"염전","대":"대지","장":"공장용지","학":"학교용지","차":"주차장","주":"주유소용지","창":"창고용지","도":"도로","철":"철도용지","제":"제방","천":"하천","구":"구거","유":"유지","양":"양어장","수":"수도용지","공":"공원","체":"체육용지","원":"유원지","종":"종교용지","사":"사적지","묘":"묘지","잡":"잡종지"};
 
   function eachCoord(geom, fn) {
     if (!geom) return;
-    const walk = (c) => {
-      if (typeof c[0] === "number") fn(c[0], c[1]);
-      else c.forEach(walk);
-    };
+    const walk = (c) => { if (typeof c[0] === "number") fn(c[0], c[1]); else c.forEach(walk); };
     walk(geom.coordinates || []);
   }
-
   function loadTile(z, x, y) {
     return new Promise((resolve) => {
       const img = new Image();
@@ -1644,28 +1643,30 @@ window.addEventListener("DOMContentLoaded", () => {
       img.src = `/api/tile/sat/${z}/${x}/${y}`;
     });
   }
+  const todayStr = () => new Date().toISOString().slice(0, 10);
+  const safeName = (t) => String(t).replace(/[\\/:*?"<>|\s]+/g, "_");
+  function downloadBlob(blob, name) {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  }
 
-  async function exportSatImage() {
+  // 위성 + 지적 합성 캔버스 생성
+  async function renderSatCanvas() {
     const gj = window.lastPreviewGeojson;
     const feats = ((gj && gj.features) || []).filter(f =>
       f.properties && ["CADASTRAL", "HIGHLIGHT", "LABEL"].includes(f.properties.layer));
     const parcels = feats.filter(f => f.properties.layer !== "LABEL");
-    if (parcels.length === 0) {
-      alert("먼저 지번을 검색해서 지적도를 생성해 주세요.");
-      return;
-    }
+    if (parcels.length === 0) { alert("먼저 지번을 검색해서 지적도를 생성해 주세요."); return null; }
 
-    // 지적 구역 경계 계산
     let minLon = 999, maxLon = -999, minLat = 999, maxLat = -999;
     parcels.forEach(f => eachCoord(f.geometry, (lon, lat) => {
       minLon = Math.min(minLon, lon); maxLon = Math.max(maxLon, lon);
       minLat = Math.min(minLat, lat); maxLat = Math.max(maxLat, lat);
     }));
-
-    // 가로 2400px 이하에서 가장 높은 줌 선택
     let z = 19;
     while (z > 12 && (lonToX(maxLon, z) - lonToX(minLon, z)) > 2400) z--;
-
     const x0 = lonToX(minLon, z), x1 = lonToX(maxLon, z);
     const y0 = latToY(maxLat, z), y1 = latToY(minLat, z);
     const W = Math.ceil(x1 - x0), H = Math.ceil(y1 - y0);
@@ -1675,113 +1676,258 @@ window.addEventListener("DOMContentLoaded", () => {
     const ctx = canvas.getContext("2d");
     ctx.fillStyle = "#222"; ctx.fillRect(0, 0, W, H);
 
-    if (loadingOverlay) { loadingText.textContent = "위성영상 불러오는 중..."; loadingOverlay.classList.remove("hidden"); }
-    try {
-      // 위성 타일 합성
-      const tx0 = Math.floor(x0 / TILE), tx1 = Math.floor(x1 / TILE);
-      const ty0 = Math.floor(y0 / TILE), ty1 = Math.floor(y1 / TILE);
-      const jobs = [];
-      for (let tx = tx0; tx <= tx1; tx++) {
-        for (let ty = ty0; ty <= ty1; ty++) {
-          jobs.push(loadTile(z, tx, ty).then(img => {
-            if (img) ctx.drawImage(img, tx * TILE - x0, ty * TILE - y0, TILE, TILE);
-          }));
-        }
-      }
-      await Promise.all(jobs);
-
-      const px = (lon) => lonToX(lon, z) - x0;
-      const py = (lat) => latToY(lat, z) - y0;
-
-      // 필지 경계선
-      const drawRing = (ring) => {
-        ring.forEach((c, i) => i ? ctx.lineTo(px(c[0]), py(c[1])) : ctx.moveTo(px(c[0]), py(c[1])));
-      };
-      const order = parcels.sort((a, b) =>
-        (a.properties.layer === "HIGHLIGHT") - (b.properties.layer === "HIGHLIGHT"));
-      order.forEach(f => {
-        const hl = f.properties.layer === "HIGHLIGHT";
-        const g = f.geometry;
-        if (!g) return;
-        const polys = g.type === "Polygon" ? [g.coordinates]
-          : g.type === "MultiPolygon" ? g.coordinates : [];
-        ctx.lineJoin = "round";
-        ctx.lineWidth = hl ? 3.5 : 1.3;
-        ctx.strokeStyle = hl ? "#EF4444" : "rgba(226,232,240,0.9)";
-        ctx.fillStyle = hl ? "rgba(239,68,68,0.35)" : "rgba(0,0,0,0)";
-        polys.forEach(poly => {
-          ctx.beginPath();
-          poly.forEach(drawRing);
-          ctx.fill(); ctx.stroke();
-        });
-        if (g.type === "LineString" || g.type === "MultiLineString") {
-          const lines = g.type === "LineString" ? [g.coordinates] : g.coordinates;
-          lines.forEach(l => { ctx.beginPath(); drawRing(l); ctx.stroke(); });
-        }
-      });
-
-      // 지번 라벨
-      const fs = Math.max(12, Math.min(22, Math.round(W / 90)));
-      ctx.font = `700 ${fs}px "Malgun Gothic", "Apple SD Gothic Neo", sans-serif`;
-      ctx.textBaseline = "middle"; ctx.textAlign = "center";
-      feats.filter(f => f.properties.layer === "LABEL" && f.properties.text).forEach(f => {
-        const [lon, lat] = f.geometry.coordinates;
-        const x = px(lon), y = py(lat);
-        if (x < 0 || y < 0 || x > W || y > H) return;
-        const t = String(f.properties.text);
-        const target = f.properties.IS_TARGET === "Y";
-        if (showLabelBox) {
-          const w = ctx.measureText(t).width + 12, h = fs + 8;
-          ctx.fillStyle = "rgba(15,23,42,0.88)";
-          ctx.fillRect(x - w / 2, y - h / 2, w, h);
-          if (target) { ctx.strokeStyle = "#EF4444"; ctx.lineWidth = 1.5; ctx.strokeRect(x - w / 2, y - h / 2, w, h); }
-          ctx.fillStyle = target ? "#F87171" : "#E2E8F0";
-          ctx.fillText(t, x, y);
-        } else {
-          ctx.lineJoin = "round"; ctx.lineWidth = 4; ctx.strokeStyle = "#000";
-          ctx.strokeText(t, x, y);
-          ctx.fillStyle = target ? "#FCA5A5" : "#FFFFFF";
-          ctx.fillText(t, x, y);
-        }
-      });
-
-      // 필지 주기(메모)
-      Object.values(window.parcelNotes).forEach(n => {
-        const x = px(n.lng), y = py(n.lat) + fs * 1.6;
-        if (x < 0 || y < 0 || x > W || y > H) return;
-        const w = ctx.measureText(n.text).width + 14, h = fs + 8;
-        ctx.fillStyle = "#FEF08A";
-        ctx.fillRect(x - w / 2, y - h / 2, w, h);
-        ctx.strokeStyle = "#CA8A04"; ctx.lineWidth = 1.5;
-        ctx.strokeRect(x - w / 2, y - h / 2, w, h);
-        ctx.fillStyle = "#1e293b";
-        ctx.fillText(n.text, x, y);
-      });
-
-      // 출처 표기
-      ctx.font = `${Math.max(10, fs - 3)}px sans-serif`;
-      ctx.textAlign = "right"; ctx.textBaseline = "bottom";
-      ctx.fillStyle = "rgba(255,255,255,0.85)";
-      ctx.fillText("위성영상: VWorld / 지적: VWorld 연속지적도", W - 6, H - 4);
-
-      canvas.toBlob((blob) => {
-        if (!blob) { alert("이미지 생성에 실패했습니다."); return; }
-        const addr = (typeof jibeonAddressInput !== "undefined" && jibeonAddressInput.value.trim()) || "지적";
-        const name = `지적위성_${addr.replace(/[\\/:*?"<>|\s]+/g, "_")}_${new Date().toISOString().slice(0, 10)}.png`;
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
-        a.download = name;
-        document.body.appendChild(a); a.click(); a.remove();
-        setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-      }, "image/png");
-    } finally {
-      if (loadingOverlay) loadingOverlay.classList.add("hidden");
+    const tx0 = Math.floor(x0 / TILE), tx1 = Math.floor(x1 / TILE);
+    const ty0 = Math.floor(y0 / TILE), ty1 = Math.floor(y1 / TILE);
+    const jobs = [];
+    for (let tx = tx0; tx <= tx1; tx++) for (let ty = ty0; ty <= ty1; ty++) {
+      jobs.push(loadTile(z, tx, ty).then(img => { if (img) ctx.drawImage(img, tx * TILE - x0, ty * TILE - y0, TILE, TILE); }));
     }
+    await Promise.all(jobs);
+
+    const px = (lon) => lonToX(lon, z) - x0;
+    const py = (lat) => latToY(lat, z) - y0;
+    const drawRing = (ring) => ring.forEach((c, i) => i ? ctx.lineTo(px(c[0]), py(c[1])) : ctx.moveTo(px(c[0]), py(c[1])));
+
+    [...parcels].sort((a, b) => (a.properties.layer === "HIGHLIGHT") - (b.properties.layer === "HIGHLIGHT")).forEach(f => {
+      const hl = f.properties.layer === "HIGHLIGHT";
+      const g = f.geometry; if (!g) return;
+      const polys = g.type === "Polygon" ? [g.coordinates] : g.type === "MultiPolygon" ? g.coordinates : [];
+      ctx.lineJoin = "round";
+      ctx.lineWidth = hl ? 3.5 : 1.3;
+      ctx.strokeStyle = hl ? "#EF4444" : "rgba(226,232,240,0.9)";
+      ctx.fillStyle = hl ? "rgba(239,68,68,0.35)" : "rgba(0,0,0,0)";
+      polys.forEach(poly => { ctx.beginPath(); poly.forEach(drawRing); ctx.fill(); ctx.stroke(); });
+      if (g.type === "LineString" || g.type === "MultiLineString") {
+        const lines = g.type === "LineString" ? [g.coordinates] : g.coordinates;
+        lines.forEach(l => { ctx.beginPath(); drawRing(l); ctx.stroke(); });
+      }
+    });
+
+    const fs = Math.max(12, Math.min(22, Math.round(W / 90)));
+    ctx.font = `700 ${fs}px ${FONT}`;
+    ctx.textBaseline = "middle"; ctx.textAlign = "center";
+    feats.filter(f => f.properties.layer === "LABEL" && f.properties.text).forEach(f => {
+      const [lon, lat] = f.geometry.coordinates;
+      const x = px(lon), y = py(lat);
+      if (x < 0 || y < 0 || x > W || y > H) return;
+      const t = String(f.properties.text);
+      const target = f.properties.IS_TARGET === "Y";
+      if (showLabelBox) {
+        const w = ctx.measureText(t).width + 12, h = fs + 8;
+        ctx.fillStyle = "rgba(15,23,42,0.88)"; ctx.fillRect(x - w / 2, y - h / 2, w, h);
+        if (target) { ctx.strokeStyle = "#EF4444"; ctx.lineWidth = 1.5; ctx.strokeRect(x - w / 2, y - h / 2, w, h); }
+        ctx.fillStyle = target ? "#F87171" : "#E2E8F0"; ctx.fillText(t, x, y);
+      } else {
+        ctx.lineJoin = "round"; ctx.lineWidth = 4; ctx.strokeStyle = "#000"; ctx.strokeText(t, x, y);
+        ctx.fillStyle = target ? "#FCA5A5" : "#FFFFFF"; ctx.fillText(t, x, y);
+      }
+    });
+    Object.values(window.parcelNotes).forEach(n => {
+      const x = px(n.lng), y = py(n.lat) + fs * 1.6;
+      if (x < 0 || y < 0 || x > W || y > H) return;
+      const w = ctx.measureText(n.text).width + 14, h = fs + 8;
+      ctx.fillStyle = "#FEF08A"; ctx.fillRect(x - w / 2, y - h / 2, w, h);
+      ctx.strokeStyle = "#CA8A04"; ctx.lineWidth = 1.5; ctx.strokeRect(x - w / 2, y - h / 2, w, h);
+      ctx.fillStyle = "#1e293b"; ctx.fillText(n.text, x, y);
+    });
+
+    const centerLat = (minLat + maxLat) / 2;
+    const mPerPx = 156543.03392 * Math.cos(centerLat * Math.PI / 180) / Math.pow(2, z);
+    return { canvas, feats, parcels, z, mPerPx, fs, W, H,
+             center: { lat: centerLat, lon: (minLon + maxLon) / 2 } };
   }
 
-  btn.addEventListener("click", () => exportSatImage().catch(e => alert("이미지 저장 오류: " + e.message)));
-})();
+  // ---- 단순 이미지 저장 ----
+  async function exportImage() {
+    if (loadingOverlay) { loadingText.textContent = "위성영상 불러오는 중..."; loadingOverlay.classList.remove("hidden"); }
+    try {
+      const r = await renderSatCanvas(); if (!r) return;
+      const ctx = r.canvas.getContext("2d");
+      ctx.font = `${Math.max(10, r.fs - 3)}px sans-serif`;
+      ctx.textAlign = "right"; ctx.textBaseline = "bottom"; ctx.fillStyle = "rgba(255,255,255,0.85)";
+      ctx.fillText("위성영상: VWorld / 지적: VWorld 연속지적도", r.W - 6, r.H - 4);
+      const addr = (jibeonAddressInput && jibeonAddressInput.value.trim()) || "지적";
+      r.canvas.toBlob(b => b ? downloadBlob(b, `지적위성_${safeName(addr)}_${todayStr()}.png`) : alert("이미지 생성에 실패했습니다."), "image/png");
+    } finally { if (loadingOverlay) loadingOverlay.classList.add("hidden"); }
+  }
 
+  // ---- A4 보고서 ----
+  function niceScale(maxM) {
+    const c = [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000];
+    let best = c[0]; c.forEach(v => { if (v <= maxM) best = v; }); return best;
+  }
+  function buildReportCanvas(r) {
+    const PW = 1654, PH = 2339;               // A4 @ 200dpi
+    const mm = (v) => v * PW / 210;
+    const c = document.createElement("canvas"); c.width = PW; c.height = PH;
+    const g = c.getContext("2d");
+    g.fillStyle = "#FFFFFF"; g.fillRect(0, 0, PW, PH);
+    const txt = (t, x, y, size, color = "#0f172a", weight = 400, align = "left") => {
+      g.font = `${weight} ${size}px ${FONT}`; g.fillStyle = color; g.textAlign = align; g.textBaseline = "middle"; g.fillText(t, x, y);
+    };
+
+    // 정보 수집
+    const hl = r.parcels.find(f => f.properties.layer === "HIGHLIGHT");
+    const hp = hl ? hl.properties : {};
+    const label = hp.JIBUN || "";
+    const jmChar = label.trim().split(/\s+/).pop();
+    const jimok = JIMOK[jmChar] ? (JIMOK[jmChar] === jmChar ? jmChar : `${JIMOK[jmChar]}(${jmChar})`) : (jmChar || "-");
+    const jibunOnly = label.replace(/\s+\S+$/, "") || label || "-";
+    const address = (jibeonAddressInput && jibeonAddressInput.value.trim()) || "-";
+    const area = hp.AREA_M2 ? `${Number(hp.AREA_M2).toLocaleString()} ㎡  (${Number(hp.AREA_PYUNG).toLocaleString()} 평)` : "-";
+    let cLat = r.center.lat, cLon = r.center.lon;
+    if (hl) { let a=999,b=-999,d=999,e=-999; eachCoord(hl.geometry,(lo,la)=>{a=Math.min(a,lo);b=Math.max(b,lo);d=Math.min(d,la);e=Math.max(e,la);}); cLon=(a+b)/2; cLat=(d+e)/2; }
+    const neighbors = r.parcels.filter(f => f.properties.layer === "CADASTRAL" && f.properties.JIBUN).map(f => f.properties.JIBUN);
+    const uniqNb = [...new Set(neighbors)];
+    const notes = Object.values(window.parcelNotes);
+
+    // 헤더
+    g.fillStyle = "#0f2a4a"; g.fillRect(0, 0, PW, mm(26));
+    g.fillStyle = "#EF4444"; g.fillRect(0, mm(26), PW, mm(1.6));
+    txt("지적 · 위성영상 현황도", mm(12), mm(11), mm(8.2), "#FFFFFF", 700);
+    txt("Cadastral & Satellite Site Overview", mm(12), mm(19.5), mm(3.6), "#93C5FD", 400);
+    txt(`작성일  ${todayStr()}`, PW - mm(12), mm(11), mm(3.8), "#E2E8F0", 400, "right");
+    txt("NGII Map Studio", PW - mm(12), mm(19.5), mm(3.4), "#93C5FD", 400, "right");
+
+    // 정보표
+    const tx = mm(12), tw = PW - mm(24);
+    let ty = mm(34);
+    txt("■ 대상 필지 정보", tx, ty, mm(4.6), "#0f2a4a", 700);
+    ty += mm(5);
+    const rows = [
+      ["소재지", address, "지번", jibunOnly],
+      ["지목", jimok, "면적", area],
+      ["PNU(고유번호)", hp.PNU || "-", "중심좌표(WGS84)", `${cLat.toFixed(6)}, ${cLon.toFixed(6)}`],
+    ];
+    const rowH = mm(10), c1 = mm(30), c2 = tw / 2 - mm(30) , half = tw / 2;
+    rows.forEach((row, i) => {
+      const y = ty + i * rowH;
+      [0, 1].forEach(k => {
+        const x = tx + k * half;
+        g.fillStyle = "#EAF0F8"; g.fillRect(x, y, c1, rowH);
+        g.fillStyle = i % 2 ? "#F8FAFC" : "#FFFFFF"; g.fillRect(x + c1, y, half - c1, rowH);
+        txt(row[k * 2], x + c1 / 2, y + rowH / 2, mm(3.5), "#1e3a5f", 700, "center");
+        let v = String(row[k * 2 + 1]); let size = mm(3.9);
+        g.font = `600 ${size}px ${FONT}`;
+        while (g.measureText(v).width > half - c1 - mm(4) && size > mm(2.6)) { size -= 2; g.font = `600 ${size}px ${FONT}`; }
+        txt(v, x + c1 + mm(2.5), y + rowH / 2, size, "#0f172a", 600);
+      });
+    });
+    g.strokeStyle = "#94A3B8"; g.lineWidth = 2; g.strokeRect(tx, ty, tw, rows.length * rowH);
+    for (let i = 1; i < rows.length; i++) { g.beginPath(); g.moveTo(tx, ty + i * rowH); g.lineTo(tx + tw, ty + i * rowH); g.stroke(); }
+    g.beginPath(); g.moveTo(tx + half, ty); g.lineTo(tx + half, ty + rows.length * rowH); g.stroke();
+    ty += rows.length * rowH + mm(7);
+
+    // 이미지 영역
+    txt("■ 위성영상 + 지적 중첩도", tx, ty, mm(4.6), "#0f2a4a", 700);
+    ty += mm(4);
+    const boxW = tw, boxH = mm(150);
+    const sc = Math.min(boxW / r.W, boxH / r.H);
+    const iw = r.W * sc, ih = r.H * sc, ix = tx + (boxW - iw) / 2, iy = ty + (boxH - ih) / 2;
+    g.fillStyle = "#E2E8F0"; g.fillRect(tx, ty, boxW, boxH);
+    g.drawImage(r.canvas, ix, iy, iw, ih);
+    g.strokeStyle = "#334155"; g.lineWidth = 3; g.strokeRect(ix, iy, iw, ih);
+
+    // 축척바 (이미지 좌하단)
+    const pxPerM = sc / r.mPerPx;
+    const barM = niceScale(Math.max(1, (iw * 0.28) / pxPerM));
+    const barPx = barM * pxPerM;
+    const bx = ix + mm(4), by = iy + ih - mm(8);
+    g.fillStyle = "rgba(255,255,255,0.88)"; g.fillRect(bx - mm(2), by - mm(6), barPx + mm(8), mm(10.5));
+    g.fillStyle = "#0f172a"; g.fillRect(bx, by, barPx, mm(1.4));
+    g.fillRect(bx, by - mm(1.6), 3, mm(3)); g.fillRect(bx + barPx - 3, by - mm(1.6), 3, mm(3));
+    txt(`${barM} m`, bx + barPx / 2, by - mm(3), mm(3.2), "#0f172a", 700, "center");
+    // 방위표 (우상단)
+    const nx = ix + iw - mm(9), ny = iy + mm(14);
+    g.fillStyle = "rgba(255,255,255,0.88)"; g.fillRect(nx - mm(6), iy + mm(3), mm(12), mm(22));
+    g.fillStyle = "#0f172a"; g.beginPath(); g.moveTo(nx, iy + mm(9)); g.lineTo(nx - mm(3), ny + mm(6)); g.lineTo(nx, ny + mm(3.5)); g.lineTo(nx + mm(3), ny + mm(6)); g.closePath(); g.fill();
+    txt("N", nx, iy + mm(6), mm(4), "#0f172a", 800, "center");
+    // 범례 (좌상단)
+    const lx = ix + mm(4), ly = iy + mm(4);
+    g.fillStyle = "rgba(255,255,255,0.9)"; g.fillRect(lx - mm(2), ly - mm(2), mm(36), mm(16));
+    g.fillStyle = "rgba(239,68,68,0.45)"; g.fillRect(lx, ly, mm(6), mm(4)); g.strokeStyle = "#EF4444"; g.lineWidth = 3; g.strokeRect(lx, ly, mm(6), mm(4));
+    txt("대상 필지", lx + mm(8), ly + mm(2), mm(3.2), "#0f172a", 600);
+    g.strokeStyle = "#475569"; g.lineWidth = 2; g.strokeRect(lx, ly + mm(7), mm(6), mm(4));
+    txt("인접 필지", lx + mm(8), ly + mm(9), mm(3.2), "#0f172a", 600);
+    ty += boxH + mm(7);
+
+    // 주기 / 인접필지
+    const colW = (tw - mm(6)) / 2;
+    txt("■ 주기", tx, ty, mm(4.4), "#0f2a4a", 700);
+    txt(`■ 인접 필지 (${uniqNb.length}필지)`, tx + colW + mm(6), ty, mm(4.4), "#0f2a4a", 700);
+    ty += mm(4);
+    const boxH2 = mm(30);
+    g.strokeStyle = "#94A3B8"; g.lineWidth = 2;
+    g.strokeRect(tx, ty, colW, boxH2); g.strokeRect(tx + colW + mm(6), ty, colW, boxH2);
+    if (notes.length) {
+      notes.slice(0, 6).forEach((n, i) => txt(`• ${n.jibun ? n.jibun + " : " : ""}${n.text}`, tx + mm(3), ty + mm(4.5) + i * mm(4.6), mm(3.5), "#0f172a", 600));
+    } else {
+      txt("(입력된 주기 없음)", tx + mm(3), ty + mm(5), mm(3.4), "#94A3B8", 400);
+    }
+    let line = "", ly2 = 0;
+    const maxLines = 5, maxW = colW - mm(6);
+    g.font = `400 ${mm(3.4)}px ${FONT}`;
+    const nbText = uniqNb.join("  ·  ");
+    const words = nbText.split("  ·  "); let lines = [];
+    words.forEach(w => {
+      const t = line ? line + "  ·  " + w : w;
+      if (g.measureText(t).width > maxW) { lines.push(line); line = w; } else line = t;
+    });
+    if (line) lines.push(line);
+    lines.slice(0, maxLines).forEach((l, i) => {
+      const suffix = (i === maxLines - 1 && lines.length > maxLines) ? " …" : "";
+      txt(l + suffix, tx + colW + mm(9), ty + mm(4.5) + i * mm(4.9), mm(3.4), "#334155", 400);
+    });
+
+    // 푸터
+    g.fillStyle = "#CBD5E1"; g.fillRect(mm(12), PH - mm(14), PW - mm(24), 2);
+    txt("출처: 위성영상 VWorld(국토교통부) · 연속지적도 VWorld", PW / 2, PH - mm(10.5), mm(3), "#64748B", 400, "center");
+    txt("본 자료는 참고용이며 법적 효력이 없습니다. 정확한 경계는 지적공부 및 경계복원측량으로 확인하시기 바랍니다.", PW / 2, PH - mm(6.8), mm(3), "#64748B", 400, "center");
+    txt(`NGII Map Studio  ·  ${todayStr()}`, PW / 2, PH - mm(3.4), mm(2.7), "#94A3B8", 400, "center");
+    return c;
+  }
+
+  // JPEG -> 단일 페이지 A4 PDF
+  function jpegToPdf(jpegBytes, wpx, hpx) {
+    const enc = new TextEncoder();
+    const parts = []; let offset = 0; const offs = [];
+    const push = (u8) => { parts.push(u8); offset += u8.length; };
+    const str = (t) => push(enc.encode(t));
+    str("%PDF-1.4\n");
+    const obj = (n, body) => { offs[n] = offset; str(`${n} 0 obj\n${body}\nendobj\n`); };
+    obj(1, "<< /Type /Catalog /Pages 2 0 R >>");
+    obj(2, "<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
+    obj(3, "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Contents 4 0 R /Resources << /XObject << /Im0 5 0 R >> >> >>");
+    const content = "q 595.28 0 0 841.89 0 0 cm /Im0 Do Q";
+    obj(4, `<< /Length ${content.length} >>\nstream\n${content}\nendstream`);
+    offs[5] = offset;
+    str(`5 0 obj\n<< /Type /XObject /Subtype /Image /Width ${wpx} /Height ${hpx} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpegBytes.length} >>\nstream\n`);
+    push(jpegBytes); str("\nendstream\nendobj\n");
+    const xrefPos = offset;
+    let xref = "xref\n0 6\n0000000000 65535 f \n";
+    for (let i = 1; i <= 5; i++) xref += String(offs[i]).padStart(10, "0") + " 00000 n \n";
+    str(xref + `trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xrefPos}\n%%EOF`);
+    return new Blob(parts, { type: "application/pdf" });
+  }
+
+  async function exportReport() {
+    if (loadingOverlay) { loadingText.textContent = "A4 보고서 생성 중..."; loadingOverlay.classList.remove("hidden"); }
+    try {
+      const r = await renderSatCanvas(); if (!r) return;
+      const page = buildReportCanvas(r);
+      const addr = (jibeonAddressInput && jibeonAddressInput.value.trim()) || "지적";
+      const name = `지적현황도_${safeName(addr)}_${todayStr()}`;
+      const dataUrl = page.toDataURL("image/jpeg", 0.92);
+      const bin = atob(dataUrl.split(",")[1]);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      downloadBlob(jpegToPdf(bytes, page.width, page.height), name + ".pdf");
+    } finally { if (loadingOverlay) loadingOverlay.classList.add("hidden"); }
+  }
+
+  if (btnImg) btnImg.addEventListener("click", () => exportImage().catch(e => alert("이미지 저장 오류: " + e.message)));
+  if (btnRpt) btnRpt.addEventListener("click", () => exportReport().catch(e => alert("보고서 생성 오류: " + e.message)));
+})();
 
 // 지번 박스 표시 토글
 (function () {

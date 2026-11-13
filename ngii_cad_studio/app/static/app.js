@@ -79,6 +79,29 @@ const mobileQuickAddress = document.getElementById("mobile-quick-address");
 const btnMobileQuickSearch = document.getElementById("btn-mobile-quick-search");
 const btnMobileClearAddr = document.getElementById("btn-mobile-clear-addr");
 
+// ===== 지번 라벨 박스 옵션 / 필지 주기(메모) =====
+let showLabelBox = false;            // 지번 글자 뒤 검정 박스 표시 여부 (기본: 끔)
+window.parcelNotes = {};             // { key: {text, lat, lng, jibun} }
+let noteLayerGroup = null;
+
+function escHtml(t) {
+  return String(t == null ? "" : t).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+function renderNotes() {
+  if (!map) return;
+  if (!noteLayerGroup) noteLayerGroup = L.featureGroup().addTo(map);
+  noteLayerGroup.clearLayers();
+  Object.values(window.parcelNotes).forEach(n => {
+    const icon = L.divIcon({
+      className: 'parcel-note-tag',
+      html: `<div style="transform:translate(-50%,6px);background:#FEF08A;color:#1e293b;border:1px solid #CA8A04;padding:1px 6px;border-radius:4px;font-size:12px;font-weight:700;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,.5)">${escHtml(n.text)}</div>`,
+      iconSize: [0, 0]
+    });
+    L.marker([n.lat, n.lng], { icon, interactive: false }).addTo(noteLayerGroup);
+  });
+}
+
 // Initialize Leaflet Map
 function initMap() {
   map = L.map('map', {
@@ -559,7 +582,9 @@ async function fetchAndRenderPreview() {
           // Render textual label as a Leaflet DivIcon
           const divIcon = L.divIcon({
             className: 'jibeon-label-tag',
-            html: `<div class="bg-slate-900/95 text-slate-200 border border-slate-700 px-1.5 py-0.2 rounded text-[11px] font-medium shadow-md whitespace-nowrap transform -translate-x-1/2 -translate-y-1/2 ${p.IS_TARGET === 'Y' ? 'text-red-400 border-red-500/80 font-bold' : ''}">${p.text}</div>`,
+            html: showLabelBox
+              ? `<div class="bg-slate-900/95 text-slate-200 border border-slate-700 px-1.5 py-0.2 rounded text-[11px] font-medium shadow-md whitespace-nowrap transform -translate-x-1/2 -translate-y-1/2 ${p.IS_TARGET === 'Y' ? 'text-red-400 border-red-500/80 font-bold' : ''}">${p.text}</div>`
+              : `<div style="transform:translate(-50%,-50%);white-space:nowrap;font-size:12px;font-weight:700;color:${p.IS_TARGET === 'Y' ? '#FCA5A5' : '#FFFFFF'};text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000,0 0 4px #000;pointer-events:none">${p.text}</div>``,
             iconSize: [0, 0]
           });
           return L.marker(latlng, { icon: divIcon });
@@ -605,12 +630,48 @@ async function fetchAndRenderPreview() {
         if (p.text) {
           popup += `<div class="text-slate-200">주기텍스트: ${p.text}</div>`;
         }
+        const noteKey = p.PNU || p.JIBUN;
+        const isParcel = (p.layer === "CADASTRAL" || p.layer === "HIGHLIGHT") && noteKey;
+        if (isParcel) {
+          const cur = (window.parcelNotes[noteKey] || {}).text || "";
+          popup += `<div style="margin-top:8px;padding-top:6px;border-top:1px solid #475569">
+            <div style="font-size:11px;color:#FCD34D;font-weight:600;margin-bottom:3px">주기 표기</div>
+            <input class="note-input" type="text" value="${escHtml(cur)}" placeholder="예) 대상지, 매입예정" style="width:100%;padding:3px 6px;border-radius:4px;border:1px solid #64748b;background:#0f172a;color:#e2e8f0;font-size:12px" />
+            <div style="display:flex;gap:4px;margin-top:4px">
+              <button class="note-save" style="flex:1;padding:3px;border-radius:4px;background:#CA8A04;color:#fff;font-size:11px;font-weight:700">표기</button>
+              <button class="note-del" style="padding:3px 8px;border-radius:4px;background:#475569;color:#fff;font-size:11px">삭제</button>
+            </div></div>`;
+        }
         popup += `</div>`;
         layer.bindPopup(popup);
+        if (isParcel) {
+          layer.on("popupopen", (ev) => {
+            const el = ev.popup.getElement();
+            if (!el) return;
+            const input = el.querySelector(".note-input");
+            const save = () => {
+              const text = input.value.trim();
+              if (text) {
+                const c = layer.getBounds().getCenter();
+                window.parcelNotes[noteKey] = { text, lat: c.lat, lng: c.lng, jibun: p.JIBUN || "" };
+              } else {
+                delete window.parcelNotes[noteKey];
+              }
+              renderNotes();
+              layer.closePopup();
+            };
+            el.querySelector(".note-save").addEventListener("click", save);
+            input.addEventListener("keydown", (e) => { if (e.key === "Enter") save(); });
+            el.querySelector(".note-del").addEventListener("click", () => {
+              delete window.parcelNotes[noteKey]; renderNotes(); layer.closePopup();
+            });
+          });
+        }
       }
     });
 
     vectorLayerGroup.addLayer(glayer);
+    renderNotes();
 
     statVisibleFeatures.textContent = `${visibleCount.toLocaleString()}개`;
     if (minElev !== Infinity) {
@@ -1661,7 +1722,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
       // 지번 라벨
       const fs = Math.max(12, Math.min(22, Math.round(W / 90)));
-      ctx.font = `600 ${fs}px "Malgun Gothic", "Apple SD Gothic Neo", sans-serif`;
+      ctx.font = `700 ${fs}px "Malgun Gothic", "Apple SD Gothic Neo", sans-serif`;
       ctx.textBaseline = "middle"; ctx.textAlign = "center";
       feats.filter(f => f.properties.layer === "LABEL" && f.properties.text).forEach(f => {
         const [lon, lat] = f.geometry.coordinates;
@@ -1669,12 +1730,32 @@ window.addEventListener("DOMContentLoaded", () => {
         if (x < 0 || y < 0 || x > W || y > H) return;
         const t = String(f.properties.text);
         const target = f.properties.IS_TARGET === "Y";
-        const w = ctx.measureText(t).width + 12, h = fs + 8;
-        ctx.fillStyle = "rgba(15,23,42,0.88)";
+        if (showLabelBox) {
+          const w = ctx.measureText(t).width + 12, h = fs + 8;
+          ctx.fillStyle = "rgba(15,23,42,0.88)";
+          ctx.fillRect(x - w / 2, y - h / 2, w, h);
+          if (target) { ctx.strokeStyle = "#EF4444"; ctx.lineWidth = 1.5; ctx.strokeRect(x - w / 2, y - h / 2, w, h); }
+          ctx.fillStyle = target ? "#F87171" : "#E2E8F0";
+          ctx.fillText(t, x, y);
+        } else {
+          ctx.lineJoin = "round"; ctx.lineWidth = 4; ctx.strokeStyle = "#000";
+          ctx.strokeText(t, x, y);
+          ctx.fillStyle = target ? "#FCA5A5" : "#FFFFFF";
+          ctx.fillText(t, x, y);
+        }
+      });
+
+      // 필지 주기(메모)
+      Object.values(window.parcelNotes).forEach(n => {
+        const x = px(n.lng), y = py(n.lat) + fs * 1.6;
+        if (x < 0 || y < 0 || x > W || y > H) return;
+        const w = ctx.measureText(n.text).width + 14, h = fs + 8;
+        ctx.fillStyle = "#FEF08A";
         ctx.fillRect(x - w / 2, y - h / 2, w, h);
-        if (target) { ctx.strokeStyle = "#EF4444"; ctx.lineWidth = 1.5; ctx.strokeRect(x - w / 2, y - h / 2, w, h); }
-        ctx.fillStyle = target ? "#F87171" : "#E2E8F0";
-        ctx.fillText(t, x, y);
+        ctx.strokeStyle = "#CA8A04"; ctx.lineWidth = 1.5;
+        ctx.strokeRect(x - w / 2, y - h / 2, w, h);
+        ctx.fillStyle = "#1e293b";
+        ctx.fillText(n.text, x, y);
       });
 
       // 출처 표기
@@ -1699,4 +1780,16 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 
   btn.addEventListener("click", () => exportSatImage().catch(e => alert("이미지 저장 오류: " + e.message)));
+})();
+
+
+// 지번 박스 표시 토글
+(function () {
+  const cb = document.getElementById("toggle-label-box");
+  if (!cb) return;
+  cb.checked = showLabelBox;
+  cb.addEventListener("change", () => {
+    showLabelBox = cb.checked;
+    if (typeof fetchAndRenderPreview === "function") fetchAndRenderPreview();
+  });
 })();

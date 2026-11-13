@@ -571,6 +571,7 @@ async function fetchAndRenderPreview() {
           color: color,
           weight: weight,
           opacity: 0.95,
+          fill: !isBorder,
           fillColor: color,
           fillOpacity: fillOpacity,
           dashArray: dashArray
@@ -643,7 +644,7 @@ async function fetchAndRenderPreview() {
             </div></div>`;
         }
         popup += `</div>`;
-        layer.bindPopup(popup);
+        if (p.layer !== "BORDER") layer.bindPopup(popup);
         if (isParcel) {
           layer.on("popupopen", (ev) => {
             const el = ev.popup.getElement();
